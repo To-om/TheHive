@@ -13,9 +13,10 @@ import bintray.BintrayCredentials
 
 object BinTray {
 
+  lazy val bintrayPublish = taskKey[Seq[(File, String)]]("Front-end files")
   private def asStatusAndBody = new FunctionHandler({ r => (r.getStatusCode, r.getResponseBody) })
 
-  def publish(file: File, credential: BintrayCredentials, org: Option[String], repoName: String, packageName: String, version: String, log: Logger) = {
+  def publish(file: File, credential: BintrayCredentials, org: Option[String], repoName: String, packageName: String, version: String, log: Logger): Unit = {
     val BintrayCredentials(user, key) = credential
     val owner: String = org.getOrElse(user)
     val client: Client = Client(user, key, new Http())
@@ -26,5 +27,6 @@ object BinTray {
       case (201, _)  => log.info(s"$file was uploaded to $owner/$packageName@$version")
       case (_, fail) => sys.error(s"failed to upload $file to $owner/$packageName@$version: $fail")
     }
+    ()
   }
 }
