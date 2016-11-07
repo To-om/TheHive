@@ -62,23 +62,6 @@ class CaseModel @Inject() (
   override val defaultSortBy = Seq("-startDate")
   override val removeAttribute = Json.obj("status" -> CaseStatus.Deleted)
 
-  override def creationHook(parent: Option[BaseEntity], attrs: JsObject) = {
-    sequenceSrv("case").map { caseId =>
-      attrs + ("caseId" -> JsNumber(caseId))
-    }
-  }
-
-  override def updateHook(entity: BaseEntity, updateAttrs: JsObject): Future[JsObject] = Future.successful {
-    (updateAttrs \ "status").asOpt[CaseStatus.Type] match {
-      case Some(CaseStatus.Resolved) if !updateAttrs.keys.contains("endDate") =>
-        updateAttrs + ("endDate" -> Json.toJson(new Date))
-      case Some(CaseStatus.Open) =>
-        updateAttrs + ("endDate" -> JsArray(Nil))
-      case _ =>
-        updateAttrs
-    }
-  }
-
   override def getStats(entity: BaseEntity): Future[JsObject] = {
     import org.elastic4play.services.QueryDSL._
     for {

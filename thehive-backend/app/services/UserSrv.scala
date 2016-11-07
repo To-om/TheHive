@@ -21,6 +21,9 @@ import models.{ User, UserModel }
 import org.elastic4play.services.EventSrv
 import org.elastic4play.services.AuthSrv
 import javax.inject.Provider
+import java.util.UUID
+import play.api.libs.json.JsString
+import scala.util.Success
 
 @Singleton
 class UserSrv @Inject() (
@@ -39,38 +42,53 @@ class UserSrv @Inject() (
 
   override def getFromId(request: RequestHeader, userId: String): Future[AuthContext] = {
     getSrv[UserModel, User](userModel, userId)
-      .flatMap { user => getFromUser(request, user) }
+      .flatMap { user ⇒ getFromUser(request, user) }
   }
 
   override def getFromUser(request: RequestHeader, user: org.elastic4play.services.User): Future[AuthContext] = Future.successful(AuthContextImpl(user.id, user.getUserName, Instance.getRequestId(request), user.getRoles))
 
   override def getInitialUser(request: RequestHeader): Future[AuthContext] =
     dbIndex.getSize(userModel.name).map {
-      case size if size > 0 => throw AuthenticationError(s"Not authenticated")
-      case _                => AuthContextImpl("init", "", Instance.getRequestId(request), Seq(Role.admin, Role.read))
+      case size if size > 0 ⇒ throw AuthenticationError(s"Not authenticated")
+      case _                ⇒ AuthContextImpl("init", "", Instance.getRequestId(request), Seq(Role.admin, Role.read))
     }
 
-  override def inInitAuthContext[A](block: AuthContext => Future[A]) = {
+  override def inInitAuthContext[A](block: AuthContext ⇒ Future[A]) = {
     val authContext = AuthContextImpl("init", "", Instance.getInternalId, Seq(Role.admin, Role.read))
     eventSrv.publish(StreamActor.Initialize(authContext.requestId))
     block(authContext).andThen {
-      case _ => eventSrv.publish(StreamActor.Commit(authContext.requestId))
+      case _ ⇒ eventSrv.publish(StreamActor.Commit(authContext.requestId))
     }
   }
 
   def create(fields: Fields)(implicit authContext: AuthContext): Future[User] = {
-    fields.getString("password") match {
-      case None => createSrv[UserModel, User](userModel, fields)
-      case Some(password) => createSrv[UserModel, User](userModel, fields.unset("password")).flatMap { user =>
-        authSrv.get.setPassword(user.userId(), password).map(_ => user)
+    createSrv[UserModel, User](userModel, (addKey _ andThen addId)(fields).unset("password"))
+      .andThen {
+        case Success(user) ⇒
+          fields.getString("password").foreach { password ⇒
+            authSrv.get.setPassword(user.userId(), password)
+          }
       }
-    }
   }
 
   override def get(id: String): Future[User] = getSrv[UserModel, User](userModel, id)
 
+  private def addKey(fields: Fields): Fields = {
+    fields.getBoolean("with-key") match {
+      case Some(true) ⇒ fields.unset("with-key").set("key", JsString(UUID.randomUUID.toString))
+      case _          ⇒ fields
+    }
+  }
+
+  private def addId(fields: Fields): Fields = {
+    fields.getString("login") match {
+      case Some(login) ⇒ fields.unset("login").set("_id", login)
+      case _           ⇒ fields
+    }
+  }
+
   def update(id: String, fields: Fields)(implicit Context: AuthContext): Future[User] = {
-      updateSrv[UserModel, User](userModel, id, fields)
+    updateSrv[UserModel, User](userModel, id, addKey(fields))
   }
 
   def delete(id: String)(implicit Context: AuthContext): Future[User] =

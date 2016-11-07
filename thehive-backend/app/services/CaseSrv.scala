@@ -17,6 +17,9 @@ import org.elastic4play.controllers.Fields
 import org.elastic4play.services.{ Agg, AuthContext, CreateSrv, DeleteSrv, FindSrv, GetSrv, QueryDSL, QueryDef, UpdateSrv }
 
 import models.{ Artifact, ArtifactModel, Case, CaseModel, Task, TaskModel }
+import org.elastic4play.services.SequenceSrv
+import play.api.libs.json.JsNumber
+import java.util.Date
 
 @Singleton
 class CaseSrv @Inject() (
@@ -30,26 +33,34 @@ class CaseSrv @Inject() (
     updateSrv: UpdateSrv,
     deleteSrv: DeleteSrv,
     findSrv: FindSrv,
+    sequenceSrv: SequenceSrv,
     implicit val ec: ExecutionContext) {
 
   lazy val log = Logger(getClass)
 
   def create(fields: Fields)(implicit authContext: AuthContext): Future[Case] = {
-    createSrv[CaseModel, Case](caseModel, fields.unset("tasks"))
-      .flatMap { caze =>
-        val taskFields = fields.getValues("tasks").collect {
-          case task: JsObject => Fields(task)
-        }
-        createSrv[TaskModel, Task, Case](taskModel, taskFields.map(caze -> _))
-          .map(_ => caze)
+    for {
+      caseId ← sequenceSrv("case")
+      caseFields = fields.unset("tasks").set("caseId", JsNumber(caseId))
+      caze ← createSrv[CaseModel, Case](caseModel, caseFields)
+      taskFields = fields.getValues("tasks").collect {
+        case task: JsObject ⇒ caze -> Fields(task)
       }
+      _ ← createSrv[TaskModel, Task, Case](taskModel, taskFields)
+    } yield caze
   }
 
   def get(id: String)(implicit authContext: AuthContext): Future[Case] =
     getSrv[CaseModel, Case](caseModel, id)
 
-  def update(id: String, fields: Fields)(implicit authContext: AuthContext): Future[Case] =
-    updateSrv[CaseModel, Case](caseModel, id, fields)
+  def update(caze: Case, fields: Fields)(implicit authContext: AuthContext): Future[Case] = {
+    val caseFields = fields.getString("status") match {
+      case Some("Resolved") if !fields.contains("endDate") ⇒ fields.set("endDate", Json.toJson(new Date))
+      case Some("Open")                                    ⇒ fields.unset("endDate")
+      case _                                               ⇒ fields
+    }
+    updateSrv(caze, caseFields)
+  }
 
   def bulkUpdate(ids: Seq[String], fields: Fields)(implicit authContext: AuthContext): Future[Seq[Try[Case]]] = {
     updateSrv[CaseModel, Case](caseModel, ids, fields)
@@ -67,10 +78,10 @@ class CaseSrv @Inject() (
   def getStats(id: String): Future[JsObject] = {
     import org.elastic4play.services.QueryDSL._
     for {
-      taskStats <- findSrv(taskModel, and(
+      taskStats ← findSrv(taskModel, and(
         "_parent" ~= id,
         "status" in ("Waiting", "InProgress", "Completed")), groupByField("status", selectCount))
-      artifactStats <- findSrv(artifactModel, and("_parent" ~= id, "status" ~= "Ok"), groupByField("status", selectCount))
+      artifactStats ← findSrv(artifactModel, and("_parent" ~= id, "status" ~= "Ok"), groupByField("status", selectCount))
     } yield Json.obj(("tasks", taskStats), ("artifacts", artifactStats))
   }
 
@@ -78,15 +89,15 @@ class CaseSrv @Inject() (
     import org.elastic4play.services.QueryDSL._
     findSrv[ArtifactModel, Artifact](artifactModel, parent("case", withId(id)), Some("all"), Nil)
       ._1
-      .flatMapConcat { artifact => artifactSrv.findSimilar(artifact, Some("all"), Nil)._1 }
+      .flatMapConcat { artifact ⇒ artifactSrv.findSimilar(artifact, Some("all"), Nil)._1 }
       .groupBy(20, _.parentId)
-      .map { a => (a.parentId, Seq(a)) }
-      .reduce((l, r) => (l._1, r._2 ++ l._2))
+      .map { a ⇒ (a.parentId, Seq(a)) }
+      .reduce((l, r) ⇒ (l._1, r._2 ++ l._2))
       .mergeSubstreams
       .mapAsyncUnordered(5) {
-        case (Some(caseId), artifacts) => getSrv[CaseModel, Case](caseModel, caseId) map (_ -> artifacts)
-        case _                         => Future.failed(InternalError("Case not found"))
+        case (Some(caseId), artifacts) ⇒ getSrv[CaseModel, Case](caseModel, caseId) map (_ -> artifacts)
+        case _                         ⇒ Future.failed(InternalError("Case not found"))
       }
-      .mapMaterializedValue(_ => NotUsed)
+      .mapMaterializedValue(_ ⇒ NotUsed)
   }
 }
