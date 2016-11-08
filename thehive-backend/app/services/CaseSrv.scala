@@ -53,6 +53,10 @@ class CaseSrv @Inject() (
   def get(id: String)(implicit authContext: AuthContext): Future[Case] =
     getSrv[CaseModel, Case](caseModel, id)
 
+  def update(id: String, fields: Fields)(implicit authContext: AuthContext): Future[Case] = {
+    get(id).flatMap(update(_, fields))
+  }
+
   def update(caze: Case, fields: Fields)(implicit authContext: AuthContext): Future[Case] = {
     val caseFields = fields.getString("status") match {
       case Some("Resolved") if !fields.contains("endDate") ⇒ fields.set("endDate", Json.toJson(new Date))

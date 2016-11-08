@@ -15,6 +15,9 @@ import org.elastic4play.controllers.Fields
 import org.elastic4play.services.{ Agg, AuthContext, CreateSrv, DeleteSrv, FindSrv, GetSrv, QueryDSL, QueryDef, UpdateSrv }
 
 import models.{ Case, CaseModel, Task, TaskModel, TaskStatus }
+import play.api.libs.json.Json
+import java.util.Date
+import play.api.libs.json.JsBoolean
 
 @Singleton
 class TaskSrv @Inject() (
@@ -30,14 +33,14 @@ class TaskSrv @Inject() (
 
   def create(caseId: String, fields: Fields)(implicit authContext: AuthContext): Future[Task] =
     getSrv[CaseModel, Case](caseModel, caseId)
-      .flatMap { caze => create(caze, fields) }
+      .flatMap { caze ⇒ create(caze, fields) }
 
   def create(caze: Case, fields: Fields)(implicit authContext: AuthContext): Future[Task] =
     createSrv[TaskModel, Task, Case](taskModel, caze, fields)
 
   def create(caseId: String, fields: Seq[Fields])(implicit authContext: AuthContext): Future[Seq[Try[Task]]] =
     getSrv[CaseModel, Case](caseModel, caseId)
-      .flatMap { caze => create(caze, fields) }
+      .flatMap { caze ⇒ create(caze, fields) }
 
   def create(caze: Case, fields: Seq[Fields])(implicit authContext: AuthContext): Future[Seq[Try[Task]]] =
     createSrv[TaskModel, Task, Case](taskModel, fields.map(caze -> _))
@@ -47,18 +50,29 @@ class TaskSrv @Inject() (
 
   def update(id: String, fields: Fields)(implicit authContext: AuthContext): Future[Task] = {
     getSrv[TaskModel, Task](taskModel, id)
-      .flatMap { task => update(task, fields) }
+      .flatMap { task ⇒ update(task, fields) }
   }
 
-  def update(task: Task, fields: Fields)(implicit authContext: AuthContext): Future[Task] = {
-    // if update status from waiting to something else and owner is not set, then set owner to user
-    val f = if (task.status() == TaskStatus.Waiting &&
+  // if update status from waiting to something else and owner is not set, then set owner to user
+  private[services] def setOwnerIfNeeded(task: Task, fields: Fields)(implicit authContext: AuthContext): Fields = {
+    if (task.status() == TaskStatus.Waiting &&
       fields.getString("status").filterNot(_ == TaskStatus.Waiting.toString).isDefined &&
       !fields.contains("owner") &&
       task.owner().isEmpty)
       fields.set("owner", authContext.userId)
     else fields
-    updateSrv(task, f)
+  }
+
+  private[services] def setEndDateIfNeeded(fields: Fields) = {
+    fields.getString("status") match {
+      case Some("InProgress") if !fields.contains("startDate") ⇒ fields.set("startDate", Json.toJson(new Date))
+      case Some("Completed") if !fields.contains("endDate")    ⇒ fields.set("endDate", Json.toJson(new Date)).set("flag", JsBoolean(false))
+      case _                                                   ⇒ fields
+    }
+  }
+  def update(task: Task, fields: Fields)(implicit authContext: AuthContext): Future[Task] = {
+    val taskFields = setEndDateIfNeeded(setOwnerIfNeeded(task, fields))
+    updateSrv(task, taskFields)
   }
 
   def closeTasksOfCase(caseIds: String*)(implicit authContext: AuthContext): Future[Seq[Try[Task]]] = {
@@ -71,11 +85,11 @@ class TaskSrv @Inject() (
     find(filter, range, Nil)
       ._1
       .map {
-        case task if task.status() == TaskStatus.Waiting => (task, cancelTask)
-        case task                                        => (task, completeTask)
+        case task if task.status() == TaskStatus.Waiting ⇒ (task, cancelTask)
+        case task                                        ⇒ (task, completeTask)
       }
       .runWith(Sink.seq)
-      .flatMap { taskUpdate => updateSrv(taskUpdate) }
+      .flatMap { taskUpdate ⇒ updateSrv(taskUpdate) }
   }
 
   def delete(id: String)(implicit authContext: AuthContext): Future[Task] =
