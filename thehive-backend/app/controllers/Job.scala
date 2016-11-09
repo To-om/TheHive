@@ -16,9 +16,11 @@ import org.elastic4play.services.Agg
 import org.elastic4play.services.JsonFormat.{ aggReads, queryReads }
 
 import services.JobSrv
+import models.JobModel
 
 @Singleton
 class JobCtrl @Inject() (
+    jobModel: JobModel,
     jobSrv: JobSrv,
     authenticated: Authenticated,
     renderer: Renderer,
@@ -26,19 +28,19 @@ class JobCtrl @Inject() (
     implicit val ec: ExecutionContext) extends Controller with Status {
 
   @Timed
-  def create(artifactId: String) = authenticated(Role.write).async(fieldsBodyParser) { implicit request =>
+  def create(artifactId: String) = authenticated(Role.write).async(fieldsBodyParser(jobModel)) { implicit request ⇒
     jobSrv.create(artifactId, request.body)
-      .map(job => renderer.toOutput(CREATED, job))
+      .map(job ⇒ renderer.toOutput(CREATED, job))
   }
 
   @Timed
-  def get(id: String) = authenticated(Role.read).async { implicit request =>
+  def get(id: String) = authenticated(Role.read).async { implicit request ⇒
     jobSrv.get(id)
-      .map(artifact => renderer.toOutput(OK, artifact))
+      .map(artifact ⇒ renderer.toOutput(OK, artifact))
   }
 
   @Timed
-  def findInArtifact(artifactId: String) = authenticated(Role.read).async(fieldsBodyParser) { implicit request =>
+  def findInArtifact(artifactId: String) = authenticated(Role.read).async(fieldsBodyParser) { implicit request ⇒
     import org.elastic4play.services.QueryDSL._
     val childQuery = request.body.getValue("query").fold[QueryDef](QueryDSL.any)(_.as[QueryDef])
     val query = and(childQuery, "_parent" ~= artifactId)
@@ -50,7 +52,7 @@ class JobCtrl @Inject() (
   }
 
   @Timed
-  def find = authenticated(Role.read).async(fieldsBodyParser) { implicit request =>
+  def find = authenticated(Role.read).async(fieldsBodyParser) { implicit request ⇒
     val query = request.body.getValue("query").fold[QueryDef](QueryDSL.any)(_.as[QueryDef])
     val range = request.body.getString("range")
     val sort = request.body.getStrings("sort").getOrElse(Nil)
@@ -60,9 +62,9 @@ class JobCtrl @Inject() (
   }
 
   @Timed
-  def stats() = authenticated(Role.read).async(fieldsBodyParser) { implicit request =>
+  def stats() = authenticated(Role.read).async(fieldsBodyParser) { implicit request ⇒
     val query = request.body.getValue("query").fold[QueryDef](QueryDSL.any)(_.as[QueryDef])
     val agg = request.body.getValue("stats").getOrElse(throw BadRequestError("Parameter \"stats\" is missing")).as[Agg]
-    jobSrv.stats(query, agg).map(s => Ok(s))
+    jobSrv.stats(query, agg).map(s ⇒ Ok(s))
   }
 }

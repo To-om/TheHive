@@ -67,7 +67,7 @@ class ArtifactCtrl @Inject() (
   }
 
   @Timed
-  def bulkUpdate() = authenticated(Role.write).async(fieldsBodyParser) { implicit request ⇒
+  def bulkUpdate() = authenticated(Role.write).async(fieldsBodyParser(artifactModel)) { implicit request ⇒
     request.body.getStrings("ids").fold(Future.successful(Ok(JsArray()))) { ids ⇒
       artifactSrv.bulkUpdate(ids, request.body.unset("ids")).map(multiResult ⇒ renderer.toMultiOutput(OK, multiResult))
     }

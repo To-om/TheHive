@@ -53,7 +53,7 @@ class CaseCtrl @Inject() (
   }
 
   @Timed
-  def update(id: String) = authenticated(Role.write).async(fieldsBodyParser) { implicit request ⇒
+  def update(id: String) = authenticated(Role.write).async(fieldsBodyParser(caseModel)) { implicit request ⇒
     val isCaseClosing = request.body.getString("status").filter(_ == CaseStatus.Resolved.toString).isDefined
 
     for {
@@ -64,7 +64,7 @@ class CaseCtrl @Inject() (
   }
 
   @Timed
-  def bulkUpdate() = authenticated(Role.write).async(fieldsBodyParser) { implicit request ⇒
+  def bulkUpdate() = authenticated(Role.write).async(fieldsBodyParser(caseModel)) { implicit request ⇒
     val isCaseClosing = request.body.getString("status").filter(_ == CaseStatus.Resolved.toString).isDefined
 
     request.body.getStrings("ids").fold(Future.successful(Ok(JsArray()))) { ids ⇒
