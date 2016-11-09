@@ -25,6 +25,8 @@ import org.elastic4play.services.JsonFormat.{ aggReads, queryReads }
 import models.{ Case, CaseStatus }
 import services.{ CaseSrv, TaskSrv }
 import models.CaseModel
+import org.elastic4play.controllers.ApiOperation
+import org.elastic4play.controllers.ApiModelParam
 
 @Singleton
 class CaseCtrl @Inject() (
@@ -41,11 +43,11 @@ class CaseCtrl @Inject() (
   val log = Logger(getClass)
 
   @Timed
-  /*@ApiOperation(summary = "Create a new case",
+  @ApiOperation(summary = "Create a new case",
     description = "",
     authorization = Seq(Role.write),
-    params = ApiModelParam(caseModel),
-    returns = "")*/
+    params = Array(ApiModelParam(caseModel)),
+    returns = "")
   def create() = authenticated(Role.write).async(fieldsBodyParser) { implicit request ⇒
     caseSrv.create(request.body)
       .map(caze ⇒ renderer.toOutput(CREATED, caze))

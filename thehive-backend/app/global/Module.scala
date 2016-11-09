@@ -25,6 +25,7 @@ import connectors.Connector
 import controllers.{ AssetCtrl, AssetCtrlDev, AssetCtrlProd }
 import models.Migration
 import services.{ AuditSrv, AuditedModel, StreamFilter, StreamMonitor }
+import org.elastic4play.controllers.ApiDocs
 
 class TheHive(
     environment: Environment,
@@ -85,6 +86,7 @@ class TheHive(
     bind[AuthSrv].to[MultiAuthSrv]
     bind[StreamMonitor].asEagerSingleton()
     bind[AuditSrv].asEagerSingleton()
+    bind[ApiDocs].asEagerSingleton()
 
     if (environment.mode == Mode.Prod)
       bind[AssetCtrl].to[AssetCtrlProd]

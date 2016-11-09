@@ -87,6 +87,6 @@ POST     /api/stream                                controllers.StreamCtrl.creat
 GET      /api/stream/status                         controllers.StreamCtrl.status
 GET      /api/stream/:streamId                      controllers.StreamCtrl.get(streamId)
 
-->       /api/connector                             connectors.ConnectorRouter
+#->       /api/connector                             connectors.ConnectorRouter
 
 GET      /*file                                     controllers.AssetCtrl.get(file)

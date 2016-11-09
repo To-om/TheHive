@@ -26,7 +26,7 @@ class StatusCtrl @Inject() (connectors: immutable.Set[Connector],
 
   private[controllers] def getVersion(c: Class[_]) = Option(c.getPackage.getImplementationVersion).getOrElse("SNAPSHOT")
 
-  @Timed("controllers.StatusCtrl.get")
+  @Timed()
   def get = Action {
     Ok(Json.obj(
       "versions" -> Json.obj("TheHive" -> getVersion(classOf[models.Case]),
