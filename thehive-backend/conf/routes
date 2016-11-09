@@ -2,6 +2,8 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
+#GET      /api/swagger.json                          controllers.ApiHelpController.getResources
+
 GET      /                                          controllers.Default.redirect(to = "/index.html")
 GET      /api/status                                controllers.StatusCtrl.get
 GET      /api/logout                                controllers.AuthenticationCtrl.logout()
