@@ -30,6 +30,7 @@ object Dependencies {
     val zip4j = "net.lingala.zip4j" % "zip4j" % "1.3.2"
     val akkaTest = "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.4"
     val elastic4play = "org.cert-bdf" %% "elastic4play" % "1.1.1-SNAPSHOT"
+    val shapeless = "com.chuusai" %% "shapeless" % "2.3.2"
 
     object Elastic4s {
       private val version = "2.3.0"

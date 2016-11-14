@@ -25,8 +25,19 @@ import org.elastic4play.services.JsonFormat.{ aggReads, queryReads }
 import models.{ Case, CaseStatus }
 import services.{ CaseSrv, TaskSrv }
 import models.CaseModel
-import org.elastic4play.controllers.ApiOperation
-import org.elastic4play.controllers.ApiModelParam
+import org.elastic4play.controllers._
+
+import org.elastic4play.models.{ AttributeFormat => F }
+
+import shapeless._
+import HList._
+
+import shapeless.ops.hlist.Prepend
+import shapeless.ops.hlist.RightFolder
+import org.scalactic.Good
+import org.scalactic.Bad
+
+import shapeless._
 
 @Singleton
 class CaseCtrl @Inject() (
@@ -35,6 +46,7 @@ class CaseCtrl @Inject() (
     taskSrv: TaskSrv,
     auxSrv: AuxSrv,
     authenticated: Authenticated,
+    val apiDocs: ApiDocs,
     renderer: Renderer,
     fieldsBodyParser: FieldsBodyParser,
     implicit val ec: ExecutionContext,
@@ -43,15 +55,14 @@ class CaseCtrl @Inject() (
   val log = Logger(getClass)
 
   @Timed
-  @ApiOperation(summary = "Create a new case",
-    description = "",
-    authorization = Seq(Role.write),
-    params = Array(ApiModelParam(caseModel)),
-    returns = "")
-  def create() = authenticated(Role.write).async(fieldsBodyParser) { implicit request ⇒
-    caseSrv.create(request.body)
-      .map(caze ⇒ renderer.toOutput(CREATED, caze))
-  }
+  def create() = apiDocs("create a case", "this method create a new case")
+    .authenticated(Role.write)
+    .withPathParameter(ApiModelParam(caseModel))
+    .async { implicit request =>
+      val caseFields :: HNil = request.body
+      caseSrv.create(caseFields)
+        .map(caze ⇒ renderer.toOutput(CREATED, caze))
+    }
 
   @Timed
   def get(id: String) = authenticated(Role.read).async { implicit request ⇒

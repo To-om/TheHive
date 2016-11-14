@@ -6,6 +6,7 @@ libraryDependencies ++= Seq(
   Library.scalaGuice,
   Library.elastic4play,
   Library.zip4j,
+  Library.shapeless,
   "org.reflections" % "reflections" % "0.9.10"
 )
 

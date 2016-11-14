@@ -46,7 +46,7 @@ class UserSrv @Inject() (
 
   override def getInitialUser(request: RequestHeader): Future[AuthContext] =
     dbIndex.getSize(userModel.name).map {
-      case size if size > 0 => throw AuthenticationError(s"Not authenticated")
+      case size if size > 0 => AuthContextImpl("anonymous", "", Instance.getRequestId(request), Nil)
       case _                => AuthContextImpl("init", "", Instance.getRequestId(request), Seq(Role.admin, Role.read))
     }
 
