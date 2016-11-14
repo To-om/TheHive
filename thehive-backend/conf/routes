@@ -2,7 +2,7 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-#GET      /api/swagger.json                          controllers.ApiHelpController.getResources
+GET      /api/swagger.json                          org.elastic4play.controllers.Swagger.generate()
 
 GET      /                                          controllers.Default.redirect(to = "/index.html")
 GET      /api/status                                controllers.StatusCtrl.get

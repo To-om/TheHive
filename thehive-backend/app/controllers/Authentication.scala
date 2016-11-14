@@ -17,12 +17,13 @@ class AuthenticationCtrl @Inject() (
     authenticated: Authenticated,
     renderer: Renderer,
     fieldsBodyParser: FieldsBodyParser,
-    implicit val ec: ExecutionContext) extends Controller {
+    implicit val ec: ExecutionContext
+) extends Controller {
 
   @Timed
-  def login = Action.async(fieldsBodyParser) { implicit request =>
+  def login = Action.async(fieldsBodyParser) { implicit request ⇒
     authSrv.authenticate(request.body.getString("user").getOrElse("TODO"), request.body.getString("password").getOrElse("TODO"))
-      .map { authContext => authenticated.setSessingUser(Ok, authContext) }
+      .map { authContext ⇒ authenticated.setSessingUser(Ok, authContext) }
   }
 
   @Timed

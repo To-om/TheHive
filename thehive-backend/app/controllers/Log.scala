@@ -22,34 +22,35 @@ class LogCtrl @Inject() (
     authenticated: Authenticated,
     renderer: Renderer,
     fieldsBodyParser: FieldsBodyParser,
-    implicit val ec: ExecutionContext) extends Controller with Status {
+    implicit val ec: ExecutionContext
+) extends Controller with Status {
 
   @Timed
-  def create(taskId: String) = authenticated(Role.read).async(fieldsBodyParser) { implicit request =>
+  def create(taskId: String) = authenticated(Role.read).async(fieldsBodyParser) { implicit request ⇒
     logSrv.create(taskId, request.body)
-      .map(log => renderer.toOutput(CREATED, log))
+      .map(log ⇒ renderer.toOutput(CREATED, log))
   }
 
   @Timed
-  def get(id: String) = authenticated(Role.read).async { implicit request =>
+  def get(id: String) = authenticated(Role.read).async { implicit request ⇒
     logSrv.get(id)
-      .map(log => renderer.toOutput(OK, log))
+      .map(log ⇒ renderer.toOutput(OK, log))
   }
 
   @Timed
-  def update(id: String) = authenticated(Role.write).async(fieldsBodyParser) { implicit request =>
+  def update(id: String) = authenticated(Role.write).async(fieldsBodyParser) { implicit request ⇒
     logSrv.update(id, request.body)
-      .map(log => renderer.toOutput(OK, log))
+      .map(log ⇒ renderer.toOutput(OK, log))
   }
 
   @Timed
-  def delete(id: String) = authenticated(Role.write).async { implicit request =>
+  def delete(id: String) = authenticated(Role.write).async { implicit request ⇒
     logSrv.delete(id)
-      .map(_ => Ok(""))
+      .map(_ ⇒ Ok(""))
   }
 
   @Timed
-  def findInTask(taskId: String) = authenticated(Role.read).async(fieldsBodyParser) { implicit request =>
+  def findInTask(taskId: String) = authenticated(Role.read).async(fieldsBodyParser) { implicit request ⇒
     import org.elastic4play.services.QueryDSL._
     val childQuery = request.body.getValue("query").fold[QueryDef](QueryDSL.any)(_.as[QueryDef])
     val query = and(childQuery, "_parent" ~= taskId)
@@ -61,7 +62,7 @@ class LogCtrl @Inject() (
   }
 
   @Timed
-  def find = authenticated(Role.read).async(fieldsBodyParser) { implicit request =>
+  def find = authenticated(Role.read).async(fieldsBodyParser) { implicit request ⇒
     val query = request.body.getValue("query").fold[QueryDef](QueryDSL.any)(_.as[QueryDef])
     val range = request.body.getString("range")
     val sort = request.body.getStrings("sort").getOrElse(Nil)

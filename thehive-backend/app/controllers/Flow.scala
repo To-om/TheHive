@@ -20,13 +20,14 @@ class FlowCtrl @Inject() (
     auxSrv: AuxSrv,
     authenticated: Authenticated,
     renderer: Renderer,
-    implicit val ec: ExecutionContext) extends Controller with Status {
+    implicit val ec: ExecutionContext
+) extends Controller with Status {
 
   /**
    * Return audit logs. For each item, include ancestor entities
    */
   @Timed
-  def flow(rootId: Option[String], count: Option[Int]) = authenticated(Role.read).async { implicit request =>
+  def flow(rootId: Option[String], count: Option[Int]) = authenticated(Role.read).async { implicit request ⇒
     val (audits, total) = flowSrv(rootId.filterNot(_ == "any"), count.getOrElse(10))
     renderer.toOutput(OK, audits, total)
   }

@@ -23,7 +23,8 @@ class CaseTemplateSrv @Inject() (
     deleteSrv: DeleteSrv,
     findSrv: FindSrv,
     implicit val ec: ExecutionContext,
-    implicit val mat: Materializer) {
+    implicit val mat: Materializer
+) {
 
   def create(fields: Fields)(implicit authContext: AuthContext) =
     createSrv[CaseTemplateModel, CaseTemplate](caseTemplateModel, fields)

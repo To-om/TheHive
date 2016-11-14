@@ -20,19 +20,25 @@ import org.elastic4play.controllers.Renderer
  * Controller used to access stored attachments (plain or zipped)
  */
 @Singleton
-class AttachmentCtrl(password: String,
-                     attachmentSrv: AttachmentSrv,
-                     authenticated: Authenticated,
-                     renderer: Renderer) extends Controller {
+class AttachmentCtrl(
+  password: String,
+    attachmentSrv: AttachmentSrv,
+    authenticated: Authenticated,
+    renderer: Renderer
+) extends Controller {
 
-  @Inject() def this(configuration: Configuration,
-                     attachmentSrv: AttachmentSrv,
-                     authenticated: Authenticated,
-                     renderer: Renderer) =
-    this(configuration.getString("datastore.attachment.password").get,
+  @Inject() def this(
+    configuration: Configuration,
+    attachmentSrv: AttachmentSrv,
+    authenticated: Authenticated,
+    renderer: Renderer
+  ) =
+    this(
+      configuration.getString("datastore.attachment.password").get,
       attachmentSrv,
       authenticated,
-      renderer)
+      renderer
+    )
 
   /**
    * Download an attachment, identified by its hash, in plain format
@@ -40,7 +46,7 @@ class AttachmentCtrl(password: String,
    * open the document directly. It must be used only for safe file
    */
   @Timed("controllers.AttachmentCtrl.download")
-  def download(hash: String, name: Option[String]) = authenticated(Role.read) { implicit request =>
+  def download(hash: String, name: Option[String]) = authenticated(Role.read) { implicit request ⇒
     if (hash.startsWith("{{")) // angularjs hack
       NoContent
     else if (!name.getOrElse("").intersect(AttachmentAttributeFormat.forbiddenChar).isEmpty())
@@ -50,9 +56,12 @@ class AttachmentCtrl(password: String,
         header = ResponseHeader(
           200,
           Map(
-            "Content-Disposition" -> s"""attachment; filename="${name.getOrElse(hash)}"""",
-            "Content-Transfer-Encoding" -> "binary")),
-        body = HttpEntity.Streamed(attachmentSrv.source(hash), None, None))
+            "Content-Disposition" → s"""attachment; filename="${name.getOrElse(hash)}"""",
+            "Content-Transfer-Encoding" → "binary"
+          )
+        ),
+        body   = HttpEntity.Streamed(attachmentSrv.source(hash), None, None)
+      )
   }
 
   /**
@@ -61,7 +70,7 @@ class AttachmentCtrl(password: String,
    * File name can be specified (zip extension is append)
    */
   @Timed("controllers.AttachmentCtrl.downloadZip")
-  def downloadZip(hash: String, name: Option[String]) = authenticated(Role.read) { implicit request =>
+  def downloadZip(hash: String, name: Option[String]) = authenticated(Role.read) { implicit request ⇒
     if (!name.getOrElse("").intersect(AttachmentAttributeFormat.forbiddenChar).isEmpty())
       BadRequest("File name is invalid")
     else {
@@ -81,11 +90,14 @@ class AttachmentCtrl(password: String,
         header = ResponseHeader(
           200,
           Map(
-            "Content-Disposition" -> s"""attachment; filename="${name.getOrElse(hash)}.zip"""",
-            "Content-Type" -> "application/zip",
-            "Content-Transfer-Encoding" -> "binary",
-            "Content-Length" -> f.length.toString)),
-        body = HttpEntity.Streamed(FileIO.fromPath(f.toPath), Some(f.length), Some("application/zip")))
+            "Content-Disposition" → s"""attachment; filename="${name.getOrElse(hash)}.zip"""",
+            "Content-Type" → "application/zip",
+            "Content-Transfer-Encoding" → "binary",
+            "Content-Length" → f.length.toString
+          )
+        ),
+        body   = HttpEntity.Streamed(FileIO.fromPath(f.toPath), Some(f.length), Some("application/zip"))
+      )
     }
   }
 }

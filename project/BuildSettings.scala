@@ -1,6 +1,10 @@
 import sbt.Keys._
 import sbt._
 
+import scalariform.formatter.preferences._
+import com.typesafe.sbt.SbtScalariform
+import com.typesafe.sbt.SbtScalariform.ScalariformKeys
+
 object BasicSettings extends AutoPlugin {
   override def trigger = allRequirements
 
@@ -22,10 +26,39 @@ object BasicSettings extends AutoPlugin {
       "-Ywarn-nullary-override", // Warn when non-nullary overrides nullary, e.g. def foo() over def foo.
       "-Ywarn-numeric-widen" // Warn when numerics are widened.
       ),
-    scalacOptions in Test ~= { (options: Seq[String]) =>
+    scalacOptions in Test ~= { (options: Seq[String]) ⇒
       options filterNot (_ == "-Ywarn-dead-code") // Allow dead code in tests (to support using mockito).
     },
     parallelExecution in Test := false,
     fork in Test := true,
-    javaOptions += "-Xmx1G")
+    javaOptions += "-Xmx1G") ++
+    SbtScalariform.scalariformSettings ++ Seq(
+      ScalariformKeys.preferences := ScalariformKeys.preferences.value
+        .setPreference(AlignParameters, false)
+        //.setPreference(FirstParameterOnNewline, Force)
+        .setPreference(AlignArguments, true)
+        //.setPreference(FirstArgumentOnNewline, true)
+        .setPreference(AlignSingleLineCaseStatements, true)
+        .setPreference(AlignSingleLineCaseStatements.MaxArrowIndent, 60)
+        .setPreference(CompactControlReadability, true)
+        .setPreference(CompactStringConcatenation, false)
+        .setPreference(DoubleIndentClassDeclaration, true)
+        //.setPreference(DoubleIndentMethodDeclaration, true)
+        .setPreference(FormatXml, true)
+        .setPreference(IndentLocalDefs, false)
+        .setPreference(IndentPackageBlocks, false)
+        .setPreference(IndentSpaces, 2)
+        .setPreference(IndentWithTabs, false)
+        .setPreference(MultilineScaladocCommentsStartOnFirstLine, false)
+        //.setPreference(NewlineAtEndOfFile, true)
+        .setPreference(PlaceScaladocAsterisksBeneathSecondAsterisk, false)
+        .setPreference(PreserveSpaceBeforeArguments, false)
+        //.setPreference(PreserveDanglingCloseParenthesis, false)
+        .setPreference(RewriteArrowSymbols, true)
+        .setPreference(SpaceBeforeColon, false)
+        //.setPreference(SpaceBeforeContextColon, false)
+        .setPreference(SpaceInsideBrackets, false)
+        .setPreference(SpaceInsideParentheses, false)
+        .setPreference(SpacesWithinPatternBinders, true)
+        .setPreference(SpacesAroundMultiImports, true))
 }

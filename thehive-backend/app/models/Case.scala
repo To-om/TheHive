@@ -13,7 +13,7 @@ import play.api.libs.json.Json
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
 
 import org.elastic4play.JsonFormat.dateFormat
-import org.elastic4play.models.{ AttributeDef, AttributeFormat => F, AttributeOption => O, BaseEntity, EntityDef, HiveEnumeration, ModelDef }
+import org.elastic4play.models.{ AttributeDef, AttributeFormat ⇒ F, AttributeOption ⇒ O, BaseEntity, EntityDef, HiveEnumeration, ModelDef }
 import org.elastic4play.services.{ FindSrv, SequenceSrv }
 
 import JsonFormat.{ caseImpactStatusFormat, caseResolutionStatusFormat, caseStatusFormat }
@@ -34,7 +34,7 @@ object CaseImpactStatus extends Enumeration with HiveEnumeration {
   val NoImpact, WithImpact, NotApplicable = Value
 }
 
-trait CaseAttributes { _: AttributeDef =>
+trait CaseAttributes { _: AttributeDef ⇒
   val caseId = attribute("caseId", F.numberFmt, "Id of the case (auto-generated)", O.model)
   val title = attribute("title", F.textFmt, "Title of the case")
   val description = attribute("description", F.textFmt, "Description of the case")
@@ -58,23 +58,24 @@ class CaseModel @Inject() (
     taskModel: Provider[TaskModel],
     sequenceSrv: SequenceSrv,
     findSrv: FindSrv,
-    implicit val ec: ExecutionContext) extends ModelDef[CaseModel, Case]("case") with CaseAttributes with AuditedModel { caseModel =>
+    implicit val ec: ExecutionContext
+) extends ModelDef[CaseModel, Case]("case") with CaseAttributes with AuditedModel { caseModel ⇒
   override val defaultSortBy = Seq("-startDate")
-  override val removeAttribute = Json.obj("status" -> CaseStatus.Deleted)
+  override val removeAttribute = Json.obj("status" → CaseStatus.Deleted)
 
   override def creationHook(parent: Option[BaseEntity], attrs: JsObject) = {
-    sequenceSrv("case").map { caseId =>
-      attrs + ("caseId" -> JsNumber(caseId))
+    sequenceSrv("case").map { caseId ⇒
+      attrs + ("caseId" → JsNumber(caseId))
     }
   }
 
   override def updateHook(entity: BaseEntity, updateAttrs: JsObject): Future[JsObject] = Future.successful {
     (updateAttrs \ "status").asOpt[CaseStatus.Type] match {
-      case Some(CaseStatus.Resolved) if !updateAttrs.keys.contains("endDate") =>
-        updateAttrs + ("endDate" -> Json.toJson(new Date))
-      case Some(CaseStatus.Open) =>
-        updateAttrs + ("endDate" -> JsArray(Nil))
-      case _ =>
+      case Some(CaseStatus.Resolved) if !updateAttrs.keys.contains("endDate") ⇒
+        updateAttrs + ("endDate" → Json.toJson(new Date))
+      case Some(CaseStatus.Open) ⇒
+        updateAttrs + ("endDate" → JsArray(Nil))
+      case _ ⇒
         updateAttrs
     }
   }
@@ -82,28 +83,33 @@ class CaseModel @Inject() (
   override def getStats(entity: BaseEntity): Future[JsObject] = {
     import org.elastic4play.services.QueryDSL._
     for {
-      taskStatsJson <- findSrv(
+      taskStatsJson ← findSrv(
         taskModel.get,
         and(
           "_parent" ~= entity.id,
-          "status" in ("Waiting", "InProgress", "Completed")),
-        groupByField("status", selectCount))
+          "status" in ("Waiting", "InProgress", "Completed")
+        ),
+        groupByField("status", selectCount)
+      )
       (taskCount, taskStats) = taskStatsJson.value.foldLeft((0L, JsObject(Nil))) {
-        case ((total, s), (key, value)) =>
+        case ((total, s), (key, value)) ⇒
           val count = (value \ "count").as[Long]
-          (total + count, s + (key -> JsNumber(count)))
+          (total + count, s + (key → JsNumber(count)))
       }
-      artifactStats <- findSrv(
+      artifactStats ← findSrv(
         artifactModel.get,
         and(
           "_parent" ~= entity.id,
-          "status" ~= "Ok"),
-        selectCount)
-    } yield Json.obj("tasks" -> (taskStats + ("total" -> JsNumber(taskCount))), "artifacts" -> artifactStats)
+          "status" ~= "Ok"
+        ),
+        selectCount
+      )
+    } yield Json.obj("tasks" → (taskStats + ("total" → JsNumber(taskCount))), "artifacts" → artifactStats)
   }
 
   override val computedMetrics = Map(
-    "handlingDuration" -> "doc['endDate'].value - doc['startDate'].value")
+    "handlingDuration" → "doc['endDate'].value - doc['startDate'].value"
+  )
 }
 
 class Case(model: CaseModel, attributes: JsObject) extends EntityDef[CaseModel, Case](model, attributes) with CaseAttributes

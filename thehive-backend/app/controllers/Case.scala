@@ -3,41 +3,23 @@ package controllers
 import javax.inject.{ Inject, Singleton }
 
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.reflect.runtime.universe
-import scala.util.{ Failure, Success }
 
-import akka.stream.Materializer
-import akka.stream.scaladsl.Sink
-
-import play.api.Logger
-import play.api.http.Status
-import play.api.libs.json.{ JsArray, JsObject, Json }
-import play.api.libs.json.Json.toJsFieldJsValueWrapper
-import play.api.mvc.Controller
-
-import org.elastic4play.{ BadRequestError, CreateError, Timed }
-import org.elastic4play.controllers.{ Authenticated, FieldsBodyParser, Renderer }
+import org.elastic4play.{ BadRequestError, Timed }
+import org.elastic4play.controllers.{ ApiDocs, ApiModelParam, Authenticated, FieldsBodyParser, Renderer }
 import org.elastic4play.models.JsonFormat.{ baseModelEntityWrites, multiFormat }
 import org.elastic4play.services.{ Agg, AuxSrv }
 import org.elastic4play.services.{ QueryDSL, QueryDef, Role }
 import org.elastic4play.services.JsonFormat.{ aggReads, queryReads }
 
-import models.{ Case, CaseStatus }
+import akka.stream.Materializer
+import akka.stream.scaladsl.Sink
+import models.{ CaseModel, CaseStatus }
+import play.api.Logger
+import play.api.http.Status
+import play.api.libs.json.{ JsArray, JsObject, Json }
+import play.api.mvc.Controller
 import services.{ CaseSrv, TaskSrv }
-import models.CaseModel
-import org.elastic4play.controllers._
-
-import org.elastic4play.models.{ AttributeFormat => F }
-
-import shapeless._
-import HList._
-
-import shapeless.ops.hlist.Prepend
-import shapeless.ops.hlist.RightFolder
-import org.scalactic.Good
-import org.scalactic.Bad
-
-import shapeless._
+import shapeless.{ HNil, :: }
 
 @Singleton
 class CaseCtrl @Inject() (
@@ -50,7 +32,8 @@ class CaseCtrl @Inject() (
     renderer: Renderer,
     fieldsBodyParser: FieldsBodyParser,
     implicit val ec: ExecutionContext,
-    implicit val mat: Materializer) extends Controller with Status {
+    implicit val mat: Materializer
+) extends Controller with Status {
 
   val log = Logger(getClass)
 
@@ -58,7 +41,7 @@ class CaseCtrl @Inject() (
   def create() = apiDocs("create a case", "this method create a new case")
     .authenticated(Role.write)
     .withPathParameter(ApiModelParam(caseModel))
-    .async { implicit request =>
+    .async { implicit request ⇒
       val caseFields :: HNil = request.body
       caseSrv.create(caseFields)
         .map(caze ⇒ renderer.toOutput(CREATED, caze))
@@ -127,8 +110,8 @@ class CaseCtrl @Inject() (
         }.map {
           case (caze, artifacts) ⇒
             Json.toJson(caze).as[JsObject] - "description" +
-              ("linkedWith" -> Json.toJson(artifacts)) +
-              ("linksCount" -> Json.toJson(artifacts.size))
+              ("linkedWith" → Json.toJson(artifacts)) +
+              ("linksCount" → Json.toJson(artifacts.size))
         }
         renderer.toOutput(OK, casesList)
       }

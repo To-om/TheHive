@@ -23,31 +23,36 @@ import org.elastic4play.services.JsonFormat.configWrites
 import models.{ Artifact, ArtifactModel, Job, JobModel, JobStatus }
 
 @Singleton
-class JobSrv(analyzerConf: JsValue,
-             artifactSrv: ArtifactSrv,
-             analyzerSrv: AnalyzerSrv,
-             jobModel: JobModel,
-             createSrv: CreateSrv,
-             getSrv: GetSrv,
-             updateSrv: UpdateSrv,
-             deleteSrv: DeleteSrv,
-             findSrv: FindSrv,
-             attachmentSrv: AttachmentSrv,
-             eventSrv: EventSrv,
-             implicit val ec: ExecutionContext) {
-  @Inject def this(configuration: Configuration,
-                   artifactSrv: ArtifactSrv,
-                   analyzerSrv: AnalyzerSrv,
-                   jobModel: JobModel,
-                   createSrv: CreateSrv,
-                   getSrv: GetSrv,
-                   updateSrv: UpdateSrv,
-                   deleteSrv: DeleteSrv,
-                   findSrv: FindSrv,
-                   attachmentSrv: AttachmentSrv,
-                   eventSrv: EventSrv,
-                   ec: ExecutionContext) =
-    this(configWrites.writes(configuration.getConfig("analyzer.config").get),
+class JobSrv(
+  analyzerConf: JsValue,
+    artifactSrv: ArtifactSrv,
+    analyzerSrv: AnalyzerSrv,
+    jobModel: JobModel,
+    createSrv: CreateSrv,
+    getSrv: GetSrv,
+    updateSrv: UpdateSrv,
+    deleteSrv: DeleteSrv,
+    findSrv: FindSrv,
+    attachmentSrv: AttachmentSrv,
+    eventSrv: EventSrv,
+    implicit val ec: ExecutionContext
+) {
+  @Inject def this(
+    configuration: Configuration,
+    artifactSrv: ArtifactSrv,
+    analyzerSrv: AnalyzerSrv,
+    jobModel: JobModel,
+    createSrv: CreateSrv,
+    getSrv: GetSrv,
+    updateSrv: UpdateSrv,
+    deleteSrv: DeleteSrv,
+    findSrv: FindSrv,
+    attachmentSrv: AttachmentSrv,
+    eventSrv: EventSrv,
+    ec: ExecutionContext
+  ) =
+    this(
+      configWrites.writes(configuration.getConfig("analyzer.config").get),
       artifactSrv,
       analyzerSrv,
       jobModel,
@@ -58,29 +63,31 @@ class JobSrv(analyzerConf: JsValue,
       findSrv,
       attachmentSrv,
       eventSrv,
-      ec)
+      ec
+    )
 
   lazy val log = Logger(getClass)
 
   def create(artifactId: String, fields: Fields)(implicit authContext: AuthContext): Future[Job] =
-    artifactSrv.get(artifactId).flatMap(a => create(a, fields))
+    artifactSrv.get(artifactId).flatMap(a ⇒ create(a, fields))
 
   def create(artifact: Artifact, fields: Fields)(implicit authContext: AuthContext): Future[Job] = {
     createSrv[JobModel, Job, Artifact](jobModel, artifact, fields.set("artifactId", artifact.id)).map {
-      case job if job.status() != JobStatus.InProgress => job
-      case job =>
+      case job if job.status() != JobStatus.InProgress ⇒ job
+      case job ⇒
         val newJob = for {
-          analyzer <- analyzerSrv.get(job.analyzerId())
-          (status, result) <- analyzer.analyze(attachmentSrv, artifact)
+          analyzer ← analyzerSrv.get(job.analyzerId())
+          (status, result) ← analyzer.analyze(attachmentSrv, artifact)
           updatedAttributes = Json.obj(
-            "endDate" -> new Date(),
-            "report" -> result.toString,
-            "status" -> status)
-          newJob <- updateSrv(job, Fields(updatedAttributes))
+            "endDate" → new Date(),
+            "report" → result.toString,
+            "status" → status
+          )
+          newJob ← updateSrv(job, Fields(updatedAttributes))
           _ = eventSrv.publish(StreamActor.Commit(authContext.requestId))
         } yield newJob
         newJob.onFailure {
-          case t => log.error("Job execution fail", t)
+          case t ⇒ log.error("Job execution fail", t)
         }
         job
     }
@@ -89,23 +96,25 @@ class JobSrv(analyzerConf: JsValue,
   def create(artifactAndFields: Seq[(Artifact, Fields)])(implicit authContext: AuthContext) = {
     createSrv[JobModel, Job, Artifact](jobModel, artifactAndFields).map(
       _.zip(artifactAndFields).map {
-        case (Success(job), _) if job.status() != JobStatus.InProgress => job
-        case (Success(job), (artifact, _)) =>
+        case (Success(job), _) if job.status() != JobStatus.InProgress ⇒ job
+        case (Success(job), (artifact, _)) ⇒
           val newJob = for {
-            analyzer <- analyzerSrv.get(job.analyzerId())
-            (status, result) <- analyzer.analyze(attachmentSrv, artifact)
+            analyzer ← analyzerSrv.get(job.analyzerId())
+            (status, result) ← analyzer.analyze(attachmentSrv, artifact)
             updatedAttributes = Json.obj(
-              "endDate" -> new Date(),
-              "report" -> result.toString,
-              "status" -> status)
-            newJob <- updateSrv(job, Fields(updatedAttributes))
+              "endDate" → new Date(),
+              "report" → result.toString,
+              "status" → status
+            )
+            newJob ← updateSrv(job, Fields(updatedAttributes))
             _ = eventSrv.publish(StreamActor.Commit(authContext.requestId))
           } yield newJob
           newJob.onFailure {
-            case t => log.error("Job execution fail", t)
+            case t ⇒ log.error("Job execution fail", t)
           }
           job
-      })
+      }
+    )
   }
 
   def get(id: String)(implicit Context: AuthContext) =
