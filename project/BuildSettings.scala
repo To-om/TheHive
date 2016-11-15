@@ -32,7 +32,7 @@ object BasicSettings extends AutoPlugin {
     parallelExecution in Test := false,
     fork in Test := true,
     javaOptions += "-Xmx1G") ++
-    SbtScalariform.scalariformSettings ++ Seq(
+    SbtScalariform.defaultScalariformSettings ++ Seq(
       ScalariformKeys.preferences := ScalariformKeys.preferences.value
         .setPreference(AlignParameters, false)
         //.setPreference(FirstParameterOnNewline, Force)

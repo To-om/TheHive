@@ -48,21 +48,26 @@ class CaseCtrl @Inject() (
     }
 
   @Timed
-  def get(id: String) = authenticated(Role.read).async { implicit request ⇒
-    caseSrv.get(id)
-      .map(caze ⇒ renderer.toOutput(OK, caze))
-  }
+  def get(id: String) = apiDocs("retrieve a case", "")
+    .authenticated(Role.read)
+    .async[Nothing] { implicit request ⇒
+      caseSrv.get(id)
+        .map(caze ⇒ renderer.toOutput(OK, caze))
+    }
 
   @Timed
-  def update(id: String) = authenticated(Role.write).async(fieldsBodyParser) { implicit request ⇒
-    val isCaseClosing = request.body.getString("status").filter(_ == CaseStatus.Resolved.toString).isDefined
+  def update(id: String) = apiDocs("update a case", "")
+    .withPathParameter(ApiModelParam(caseModel))
+    .authenticated(Role.write).async { implicit request ⇒
+      val caseFields :: HNil = request.body
+      val isCaseClosing = caseFields.getString("status").filter(_ == CaseStatus.Resolved.toString).isDefined
 
-    for {
-      // Closing the case, so lets close the open tasks
-      caze ← caseSrv.update(id, request.body)
-      closedTasks ← if (isCaseClosing) taskSrv.closeTasksOfCase(id) else Future.successful(Nil) // FIXME log warning if closedTasks contains errors
-    } yield renderer.toOutput(OK, caze)
-  }
+      for {
+        // Closing the case, so lets close the open tasks
+        caze ← caseSrv.update(id, caseFields)
+        closedTasks ← if (isCaseClosing) taskSrv.closeTasksOfCase(id) else Future.successful(Nil) // FIXME log warning if closedTasks contains errors
+      } yield renderer.toOutput(OK, caze)
+    }
 
   @Timed
   def bulkUpdate() = authenticated(Role.write).async(fieldsBodyParser) { implicit request ⇒
