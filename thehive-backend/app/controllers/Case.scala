@@ -4,19 +4,20 @@ import javax.inject.{ Inject, Singleton }
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import org.elastic4play.{ BadRequestError, Timed }
-import org.elastic4play.controllers.{ ApiDocs, ApiModelParam, Authenticated, FieldsBodyParser, Renderer }
+import org.elastic4play.Timed
+import org.elastic4play.controllers.{ ApiDocs, ApiModelParam, ApiTypeParam, Authenticated, FieldsBodyParser, Renderer }
+import org.elastic4play.models.{ AttributeFormat ⇒ F }
 import org.elastic4play.models.JsonFormat.{ baseModelEntityWrites, multiFormat }
 import org.elastic4play.services.{ Agg, AuxSrv }
 import org.elastic4play.services.{ QueryDSL, QueryDef, Role }
-import org.elastic4play.services.JsonFormat.{ aggReads, queryReads }
+import org.elastic4play.services.JsonFormat._
 
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import models.{ CaseModel, CaseStatus }
 import play.api.Logger
 import play.api.http.Status
-import play.api.libs.json.{ JsArray, JsObject, Json }
+import play.api.libs.json._
 import play.api.mvc.Controller
 import services.{ CaseSrv, TaskSrv }
 import shapeless.{ HNil, :: }
@@ -40,7 +41,8 @@ class CaseCtrl @Inject() (
   @Timed
   def create() = apiDocs("create a case", "this method create a new case")
     .authenticated(Role.write)
-    .withPathParameter(ApiModelParam(caseModel))
+    .withParameter(ApiModelParam(caseModel))
+    .withResult(CREATED, ApiModelParam(caseModel))
     .async { implicit request ⇒
       val caseFields :: HNil = request.body
       caseSrv.create(caseFields)
@@ -50,6 +52,7 @@ class CaseCtrl @Inject() (
   @Timed
   def get(id: String) = apiDocs("retrieve a case", "")
     .authenticated(Role.read)
+    .withResult(OK, ApiModelParam(caseModel))
     .async[Nothing] { implicit request ⇒
       caseSrv.get(id)
         .map(caze ⇒ renderer.toOutput(OK, caze))
@@ -57,8 +60,10 @@ class CaseCtrl @Inject() (
 
   @Timed
   def update(id: String) = apiDocs("update a case", "")
-    .withPathParameter(ApiModelParam(caseModel))
-    .authenticated(Role.write).async { implicit request ⇒
+    .authenticated(Role.write)
+    .withParameter(ApiModelParam(caseModel))
+    .withResult(OK, ApiModelParam(caseModel))
+    .async { implicit request ⇒
       val caseFields :: HNil = request.body
       val isCaseClosing = caseFields.getString("status").filter(_ == CaseStatus.Resolved.toString).isDefined
 
@@ -70,40 +75,51 @@ class CaseCtrl @Inject() (
     }
 
   @Timed
-  def bulkUpdate() = authenticated(Role.write).async(fieldsBodyParser) { implicit request ⇒
-    val isCaseClosing = request.body.getString("status").filter(_ == CaseStatus.Resolved.toString).isDefined
+  def bulkUpdate() = apiDocs("", "")
+    .authenticated(Role.write)
+    .withParameter(ApiModelParam(caseModel))
+    .withParameter(ApiTypeParam("ids", F.multi(F.stringFmt), None, "list of case id"))
+    .async { implicit request ⇒
+      val caseFields :: ids :: HNil = request.body
+      val isCaseClosing = caseFields.getString("status").filter(_ == CaseStatus.Resolved.toString).isDefined
 
-    request.body.getStrings("ids").fold(Future.successful(Ok(JsArray()))) { ids ⇒
       if (isCaseClosing) taskSrv.closeTasksOfCase(ids: _*) // FIXME log warning if closedTasks contains errors
-      caseSrv.bulkUpdate(ids, request.body.unset("ids")).map(multiResult ⇒ renderer.toMultiOutput(OK, multiResult))
+      caseSrv.bulkUpdate(ids, caseFields).map(multiResult ⇒ renderer.toMultiOutput(OK, multiResult))
     }
-  }
 
   @Timed
-  def delete(id: String) = authenticated(Role.write).async { implicit request ⇒
-    caseSrv.delete(id)
-      .map(_ ⇒ NoContent)
-  }
+  def delete(id: String) = apiDocs("", "")
+    .authenticated(Role.write)
+    .async[Nothing] { implicit request ⇒
+      caseSrv.delete(id)
+        .map(_ ⇒ NoContent)
+    }
 
   @Timed
-  def find() = authenticated(Role.read).async(fieldsBodyParser) { implicit request ⇒
-    val query = request.body.getValue("query").fold[QueryDef](QueryDSL.any)(_.as[QueryDef])
-    val range = request.body.getString("range")
-    val sort = request.body.getStrings("sort").getOrElse(Nil)
-    val nparent = request.body.getLong("nparent").getOrElse(0L).toInt
-    val withStats = request.body.getBoolean("nstats").getOrElse(false)
+  def find() = apiDocs("", "")
+    .authenticated(Role.read)
+    .withParameter(ApiTypeParam("query", F.jsonFmt[QueryDef](JsObject(Nil)), Some(QueryDSL.any), ""))
+    .withParameter(ApiTypeParam("range", F.optional(F.stringFmt), None, ""))
+    .withParameter(ApiTypeParam("sort", F.multi(F.stringFmt), None, ""))
+    .withParameter(ApiTypeParam("nparent", F.numberFmt, Some(0L), ""))
+    .withParameter(ApiTypeParam("nstats", F.booleanFmt, Some(false), ""))
+    .async { implicit request ⇒
+      val query :: range :: sort :: nparent :: nstats :: HNil = request.body
 
-    val (cases, total) = caseSrv.find(query, range, sort)
-    val casesWithStats = auxSrv.apply(cases, nparent, withStats)
-    renderer.toOutput(OK, casesWithStats, total)
-  }
+      val (cases, total) = caseSrv.find(query, range, sort)
+      val casesWithStats = auxSrv.apply(cases, nparent.toInt, nstats)
+      renderer.toOutput(OK, casesWithStats, total)
+    }
 
   @Timed
-  def stats() = authenticated(Role.read).async(fieldsBodyParser) { implicit request ⇒
-    val query = request.body.getValue("query").fold[QueryDef](QueryDSL.any)(_.as[QueryDef])
-    val aggs = request.body.getValue("stats").getOrElse(throw BadRequestError("Parameter \"stats\" is missing")).as[Seq[Agg]]
-    caseSrv.stats(query, aggs).map(s ⇒ Ok(s))
-  }
+  def stats() = apiDocs("", "")
+    .authenticated(Role.read)
+    .withParameter(ApiTypeParam("query", F.jsonFmt[QueryDef](JsObject(Nil)), Some(QueryDSL.any), ""))
+    .withParameter(ApiTypeParam("aggs", F.jsonFmt[Seq[Agg]](JsObject(Nil)), None, ""))
+    .async { implicit request ⇒
+      val query :: aggs :: HNil = request.body
+      caseSrv.stats(query, aggs).map(s ⇒ Ok(s))
+    }
 
   @Timed
   def linkedCases(id: String) = authenticated(Role.read).async { implicit request ⇒

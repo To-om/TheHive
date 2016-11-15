@@ -3,14 +3,6 @@ package connectors.misp
 import javax.inject.{ Inject, Singleton }
 
 import scala.concurrent.ExecutionContext
-import scala.reflect.runtime.universe
-
-import play.api.Logger
-import play.api.http.Status
-import play.api.libs.json.{ JsArray, Json }
-import play.api.mvc.{ Action, Controller }
-import play.api.routing.SimpleRouter
-import play.api.routing.sird.{ GET, POST, UrlContext }
 
 import org.elastic4play.{ NotFoundError, Timed }
 import org.elastic4play.BadRequestError
@@ -19,12 +11,18 @@ import org.elastic4play.controllers.{ Authenticated, FieldsBodyParser, Renderer 
 import org.elastic4play.models.JsonFormat.baseModelEntityWrites
 import org.elastic4play.services.{ QueryDSL, QueryDef, Role }
 import org.elastic4play.services.Agg
-import org.elastic4play.services.JsonFormat.{ aggReads, queryReads }
+import org.elastic4play.services.JsonFormat.{ aggFormats, queryFormats }
+import org.elastic4play.utils.Collection
 
 import connectors.Connector
+import play.api.Logger
+import play.api.http.Status
+import play.api.libs.json.{ JsArray, JsString, Json }
+import play.api.libs.json.Json.toJsFieldJsValueWrapper
+import play.api.mvc.Controller
+import play.api.routing.SimpleRouter
+import play.api.routing.sird.{ GET, POST, UrlContext }
 import services.CaseSrv
-import org.elastic4play.utils.Collection
-import play.api.libs.json.JsString
 
 @Singleton
 class MispCtrl @Inject() (

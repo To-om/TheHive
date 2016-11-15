@@ -11,7 +11,7 @@ import org.elastic4play.Timed
 import org.elastic4play.controllers.{ Authenticated, FieldsBodyParser, Renderer }
 import org.elastic4play.services.{ AuxSrv, FindSrv }
 import org.elastic4play.services.{ QueryDSL, QueryDef, Role }
-import org.elastic4play.services.JsonFormat.queryReads
+import org.elastic4play.services.JsonFormat.queryFormats
 
 @Singleton
 class SearchCtrl @Inject() (

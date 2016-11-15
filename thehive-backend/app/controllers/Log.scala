@@ -3,17 +3,15 @@ package controllers
 import javax.inject.{ Inject, Singleton }
 
 import scala.concurrent.ExecutionContext
-import scala.reflect.runtime.universe
-
-import play.api.http.Status
-import play.api.mvc.Controller
 
 import org.elastic4play.Timed
 import org.elastic4play.controllers.{ Authenticated, FieldsBodyParser, Renderer }
 import org.elastic4play.models.JsonFormat.baseModelEntityWrites
 import org.elastic4play.services.{ QueryDSL, QueryDef, Role }
-import org.elastic4play.services.JsonFormat.queryReads
+import org.elastic4play.services.JsonFormat.queryFormats
 
+import play.api.http.Status
+import play.api.mvc.Controller
 import services.LogSrv
 
 @Singleton

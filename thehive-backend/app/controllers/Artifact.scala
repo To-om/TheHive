@@ -14,7 +14,7 @@ import org.elastic4play.controllers.{ Authenticated, FieldsBodyParser, Renderer 
 import org.elastic4play.models.JsonFormat.baseModelEntityWrites
 import org.elastic4play.services.{ Agg, AuxSrv }
 import org.elastic4play.services.{ QueryDSL, QueryDef, Role }
-import org.elastic4play.services.JsonFormat.{ aggReads, queryReads }
+import org.elastic4play.services.JsonFormat._
 
 import models.JsonFormat.analyzerWrites
 import services.{ AnalyzerSrv, ArtifactSrv }

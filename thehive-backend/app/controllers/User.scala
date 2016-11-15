@@ -2,20 +2,18 @@ package controllers
 
 import javax.inject.{ Inject, Singleton }
 
-import scala.annotation.implicitNotFound
 import scala.concurrent.{ ExecutionContext, Future }
-
-import play.api.Logger
-import play.api.http.Status
-import play.api.mvc.{ Action, Controller, Result }
 
 import org.elastic4play.{ AuthorizationError, MissingAttributeError, Timed }
 import org.elastic4play.controllers.{ Authenticated, FieldsBodyParser, Renderer }
 import org.elastic4play.models.JsonFormat.baseModelEntityWrites
 import org.elastic4play.services.{ QueryDSL, QueryDef, Role }
 import org.elastic4play.services.AuthSrv
-import org.elastic4play.services.JsonFormat.{ authContextWrites, queryReads }
+import org.elastic4play.services.JsonFormat.{ authContextWrites, queryFormats }
 
+import play.api.Logger
+import play.api.http.Status
+import play.api.mvc.{ Action, Controller, Result }
 import services.UserSrv
 
 @Singleton
