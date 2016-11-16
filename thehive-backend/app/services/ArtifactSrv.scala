@@ -64,7 +64,6 @@ class ArtifactSrv @Inject() (
   }
 
   private[services] def updateIfDeleted(caze: Case, fields: Fields)(implicit authContext: AuthContext): Future[Artifact] = {
-    fieldsSrv.parse(fields, artifactModel).toFuture.flatMap { attrs ⇒
       val updatedArtifact = for {
         id ← computeId(caze, fields)
         artifact ← getSrv[ArtifactModel, Artifact](artifactModel, id)
@@ -72,9 +71,11 @@ class ArtifactSrv @Inject() (
         updatedArtifact ← updateSrv[ArtifactModel, Artifact](artifactModel, artifact.id, fields.unset("data").unset("dataType").unset("attachment").set("status", "Ok"))
       } yield updatedArtifact
       updatedArtifact.recoverWith {
-        case _ ⇒ Future.failed(CreateError(Some("CONFLICT"), "Artifact already exists", attrs))
+        case _ ⇒ 
+          fieldsSrv.parse(fields, artifactModel).toFuture.flatMap { attrs =>
+            Future.failed(CreateError(Some("CONFLICT"), "Artifact already exists", attrs))
+        }
       }
-    }
   }
 
   def create(caseId: String, fieldSet: Seq[Fields])(implicit authContext: AuthContext): Future[Seq[Try[Artifact]]] =
