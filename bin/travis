@@ -1,0 +1,57 @@
+#!/bin/bash
+
+BINTRAY_CREDENTIAL_FILE=$HOME/.bintray/.credentials
+DOCKER_CREDENTIAL_FILE=$HOME/.docker/config.json
+GITHUB_CREDENTIAL_FILE=$HOME/.github/credentials
+
+setBintrayCredential() {
+  mkdir -p $(dirname $BINTRAY_CREDENTIAL_FILE)
+  cat <<- _EOF_ > $BINTRAY_CREDENTIAL_FILE
+  	realm = Bintray API Realm
+  	host = api.bintray.com
+  	user = $BINTRAY_USER
+  	password = $BINTRAY_API_KEY
+  _EOF_
+  echo "Bintray credential set in $BINTRAY_CREDENTIAL_FILE"
+  cat $BINTRAY_CREDENTIAL_FILE
+}
+
+setDockerCredential() {
+  mkdir -p $(dirname $DOCKER_CREDENTIAL_FILE)
+  cat <<- _EOF_ > $DOCKER_CREDENTIAL_FILE
+  	{
+  		"auths": {
+  			"https://index.docker.io/v1/": {
+  				"auth": "$DOCKER_CREDENTIAL_FILE"
+  			}
+  		}
+  	}
+
+  _EOF_
+  echo "Docker credential set in $DOCKER_CREDENTIAL_FILE"
+  cat $DOCKER_CREDENTIAL_FILE
+}
+
+setGithubCredential() {
+  mkdir -p $(dirname $GITHUB_CREDENTIAL_FILE)
+  cat <<- _EOF_ > $GITHUB_CREDENTIAL_FILE
+  	token=$GITHUB_TOKEN
+  _EOF_
+  echo "Github credential set in $GITHUB_CREDENTIAL_FILE"
+  cat $GITHUB_CREDENTIAL_FILE
+}
+
+
+GIT_VERSION=$(git describe --tags --exact HEAD &> /dev/null)
+PACKAGE_VERSION=$(sbt "show version" 2> /dev/null | tail -1 | sed -e 's/.* //;s/-.*//')
+
+if "$GIT_VERSION" = $PACKAGE_VERSION
+then
+  echo Publishing release $GIT_VERSION ...
+  setBintrayCredential
+  setDockerCredential
+  setGithubCredential
+  sbt ++$TRAVIS_SCALA_VERSION publish
+else
+  sbt ++$TRAVIS_SCALA_VERSION test
+fi
