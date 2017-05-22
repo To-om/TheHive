@@ -42,16 +42,46 @@ setGithubCredential() {
 }
 
 
-GIT_VERSION=$(git describe --tags --exact HEAD &> /dev/null)
+#GIT_VERSION=$(git describe --tags --exact HEAD &> /dev/null)
 PACKAGE_VERSION=$(sbt "show version" 2> /dev/null | tail -1 | sed -e 's/.* //;s/-.*//')
-
-if "$GIT_VERSION" = $PACKAGE_VERSION
+GIT_TAGS=$(git tag --points-at HEAD)
+if test -z "$GIT_TAGS"
 then
-  echo Publishing release $GIT_VERSION ...
-  setBintrayCredential
-  setDockerCredential
-  setGithubCredential
-  sbt ++$TRAVIS_SCALA_VERSION publish
-else
   sbt ++$TRAVIS_SCALA_VERSION test
+else
+  for GIT_VERSION in $GIT_TAGS
+  do
+    case $GIT_VERSION in
+      $PACKAGE_VERSION)
+        echo Publishing release $GIT_VERSION ...
+        setBintrayCredential
+        setDockerCredential
+        setGithubCredential
+        sbt ++$TRAVIS_SCALA_VERSION publish
+        ;;
+      debian/*)
+        echo Publishing debian package ...
+        setBintrayCredential
+        sbt ++$TRAVIS_SCALA_VERSION publishDebian
+        ;;
+      rpm/*)
+        echo Publishing rpm package ...
+        setBintrayCredential
+        sbt ++$TRAVIS_SCALA_VERSION publishRpm
+        ;;
+      binary/*)
+        echo Publishing binary package ...
+        setBintrayCredential
+        sbt ++$TRAVIS_SCALA_VERSION publish???
+        ;;
+      docker/*)
+        echo Publishing docker package ...
+        setDockerCredential
+        sbt ++$TRAVIS_SCALA_VERSION docker:publish
+        ;;
+      *)
+        echo "Unknown tag ($GIT_VERSION), run test."
+        sbt ++$TRAVIS_SCALA_VERSION test
+    esac
+  done
 fi
