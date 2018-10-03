@@ -82,7 +82,7 @@ module.exports = function(grunt) {
             options: {
                 port: 3001,
                 // Change this to '0.0.0.0' to access the server from outside.
-                hostname: 'localhost',
+                hostname: '0.0.0.0',
                 livereload: 35729
             },
             proxies: [{
@@ -114,7 +114,7 @@ module.exports = function(grunt) {
             },
             test: {
                 options: {
-                    port: 9001,
+                    port: 9000,
                     middleware: function(connect) {
                         return [
                             connect.static('.tmp'),
@@ -365,14 +365,20 @@ module.exports = function(grunt) {
                         '*.{ico,png,txt}',
                         '.htaccess',
                         '*.html',
-                        'images/{,*/}*.{webp}',
-                        'styles/fonts/{,*/}*.*'
+                        'images/{,*/}*.{webp}'
+                        //'styles/fonts/{,*/}*.*'
                     ]
                 }, {
                     expand: true,
                     cwd: '.tmp/images',
                     dest: '<%= yeoman.dist %>/images',
                     src: ['generated/*']
+                }, {
+                    expand: true,
+                    dot: true,
+                    cwd: '<%= yeoman.app %>/styles',
+                    src: ['fonts/*.*'],
+                    dest: '<%= yeoman.dist %>'
                 }, {
                     expand: true,
                     cwd: 'bower_components/bootstrap/dist',

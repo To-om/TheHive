@@ -19,11 +19,23 @@
                 },
 
                 get: function(alertId) {
-                    return $http.get(baseUrl + '/' + alertId);
+                    return $http.get(baseUrl + '/' + alertId, {
+                        params: {
+                            similarity: 1
+                        }
+                    });
                 },
 
-                create: function(alertId) {
-                    return $http.post(baseUrl + '/' + alertId + '/createCase', {});
+                create: function(alertId, data) {
+                    return $http.post(baseUrl + '/' + alertId + '/createCase', data || {});
+                },
+
+                update: function(alertId, updates) {
+                    return $http.patch(baseUrl + '/' + alertId, updates);
+                },
+
+                mergeInto: function(alertId, caseId) {
+                    return $http.post(baseUrl + '/' + alertId + '/merge/' + caseId);
                 },
 
                 canMarkAsRead: function(event) {

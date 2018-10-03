@@ -2,20 +2,14 @@ package global
 
 import javax.inject.{ Inject, Provider, Singleton }
 
-import akka.stream.Materializer
 import play.api.Logger
-import play.api.http.HttpFilters
+import play.api.http.SessionConfiguration
 import play.api.libs.crypto.CSRFTokenSigner
-import play.api.mvc.{ EssentialFilter, RequestHeader }
+import play.api.mvc.RequestHeader
 import play.filters.csrf.CSRF.{ ErrorHandler, TokenProvider }
 import play.filters.csrf.CSRFConfig
 
-import scala.collection.immutable
-
-@Singleton
-class TheHiveFilters @Inject() (injectedFilters: immutable.Set[EssentialFilter]) extends HttpFilters {
-  override val filters: Seq[EssentialFilter] = injectedFilters.toSeq
-}
+import akka.stream.Materializer
 
 object CSRFFilter {
   private[CSRFFilter] lazy val logger = Logger(getClass)
@@ -33,12 +27,14 @@ object CSRFFilter {
 
 @Singleton
 class CSRFFilter @Inject() (
-  config: Provider[CSRFConfig],
-  tokenSignerProvider: Provider[CSRFTokenSigner],
-  tokenProvider: TokenProvider,
-  errorHandler: ErrorHandler)(mat: Materializer)
-    extends play.filters.csrf.CSRFFilter(
-      config.get.copy(shouldProtect = CSRFFilter.shouldProtect),
-      tokenSignerProvider.get,
-      tokenProvider,
-      errorHandler)(mat)
+    config: Provider[CSRFConfig],
+    tokenSignerProvider: Provider[CSRFTokenSigner],
+    sessionConfiguration: SessionConfiguration,
+    tokenProvider: TokenProvider,
+    errorHandler: ErrorHandler)(mat: Materializer)
+  extends play.filters.csrf.CSRFFilter(
+    config.get.copy(shouldProtect = CSRFFilter.shouldProtect),
+    tokenSignerProvider.get,
+    sessionConfiguration,
+    tokenProvider,
+    errorHandler)(mat)

@@ -6,6 +6,8 @@ import play.api.libs.json.JsLookupResult.jsLookupResultToJsLookup
 import play.api.libs.json.JsValue.jsValueToJsLookup
 import play.api.libs.json._
 
+import org.elastic4play.services.JsonFormat.attachmentFormat
+
 object JsonFormat {
 
   implicit val mispAlertReads: Reads[MispAlert] = Reads[MispAlert] { json ⇒
@@ -29,21 +31,26 @@ object JsonFormat {
       date = new Date(timestamp.toLong * 1000)
       publishTimestamp ← (json \ "publish_timestamp").validate[String]
       publishDate = new Date(publishTimestamp.toLong * 1000)
-      threatLevel ← (json \ "threat_level_id").validate[String]
+      threatLevelString ← (json \ "threat_level_id").validate[String]
+      threatLevel = threatLevelString.toLong
+      isPublished ← (json \ "published").validate[Boolean]
+      extendsUuid = (json \ "extends_uuid").asOpt[String]
     } yield MispAlert(
       org,
       eventId,
       date,
       publishDate,
+      isPublished,
+      extendsUuid,
       s"#$eventId ${info.trim}",
       s"Imported from MISP Event #$eventId, created at $date",
-      threatLevel.toLong,
+      if (0 < threatLevel && threatLevel < 4) 4 - threatLevel else 2,
       alertTags,
       tlp,
       "")
   }
 
-  implicit val mispAlertWrites: Writes[MispAlert] = Json.writes[MispAlert]
+  implicit val mispAlertWrites: Writes[MispAlert] = Json.writes[MispAlert].transform((_: JsValue).asInstanceOf[JsObject] - "isPublished" - "extendsUuid")
 
   implicit val attributeReads: Reads[MispAttribute] = Reads(json ⇒
     for {
@@ -62,5 +69,36 @@ object JsonFormat {
       date,
       comment,
       value,
-      tags :+ s"MISP:category$category" :+ s"MISP:type=$tpe"))
+      tags))
+
+  val tlpWrites: Writes[Long] = Writes[Long] {
+    case 0 ⇒ JsString("tlp:white")
+    case 1 ⇒ JsString("tlp:green")
+    case 2 ⇒ JsString("tlp:amber")
+    case 3 ⇒ JsString("tlp:red")
+    case _ ⇒ JsString("tlp:amber")
+  }
+
+  implicit val exportedAttributeWrites: Writes[ExportedMispAttribute] = Writes[ExportedMispAttribute] { attribute ⇒
+    Json.obj(
+      "category" → attribute.category,
+      "type" → attribute.tpe,
+      "value" → attribute.value.fold[String](identity, _.name),
+      "comment" → attribute.comment,
+      "Tag" → Json.arr(
+        Json.obj("name" → tlpWrites.writes(attribute.tlp))))
+  }
+
+  implicit val mispArtifactWrites: Writes[MispArtifact] = OWrites[MispArtifact] { artifact ⇒
+    Json.obj(
+      "dataType" → artifact.dataType,
+      "message" → artifact.message,
+      "tlp" → artifact.tlp,
+      "tags" → artifact.tags,
+      "startDate" → artifact.startDate) + (artifact.value match {
+        case SimpleArtifactData(data)                           ⇒ "data" → JsString(data)
+        case RemoteAttachmentArtifact(filename, reference, tpe) ⇒ "remoteAttachment" → Json.obj("filename" → filename, "reference" → reference, "type" → tpe)
+        case AttachmentArtifact(attachment)                     ⇒ "attachment" → Json.toJson(attachment)
+      })
+  }
 }

@@ -1,7 +1,7 @@
 
 <div class="col-md-12 mb-s clearfix">
     <div class="pull-left">
-        <h4>List of observables ({{artifacts.total || 0}} of {{artifactStats.count}})</h4>
+        <h4>Observable List ({{artifacts.total || 0}} of {{artifactStats.count}})</h4>
     </div>
     <div class="active-filters">
         <ul class="" ng-if="uiSrv.countFilters() > 0">
@@ -41,10 +41,32 @@
                 </th>
                 <th style="width: 15px"></th>
                 <th style="width: 15px"></th>
-                <th style="width: 100px">Type <a href ng-click="artifacts.sort='-dataType'; artifacts.update()"><i class="fa fa-caret-up"></i></a><a href ng-click="artifacts.sort='+dataType'; artifacts.update()"><i class="fa fa-caret-down"></i></a></th>
-                <th>Data/Filename <a href ng-click="artifacts.sort='-data'; artifacts.update()"><i class="fa fa-caret-up"></i></a><a href ng-click="artifacts.sort='+data'; artifacts.update()"><i class="fa fa-caret-down"></i></a></th>
-                <th style="width: 400px">Analysis</th>
-                <th style="width: 120px">Date added <a href ng-click="artifacts.sort='-startDate'; artifacts.update()"><i class="fa fa-caret-up"></i></a><a href ng-click="artifacts.sort='+startDate'; artifacts.update()"><i class="fa fa-caret-down"></i></a></th>
+                <th style="width: 15px"></th>
+                <th style="width: 100px">
+                  <a href class="text-default" ng-click="sortBy('dataType')">
+                    Type
+                    <i ng-show="artifacts.sort !== '+dataType' && artifacts.sort !== '-dataType'" class="fa fa-sort"></i>
+                    <i ng-show="artifacts.sort === '+dataType'" class="fa fa-caret-up"></i>
+                    <i ng-show="artifacts.sort === '-dataType'" class="fa fa-caret-down"></i>
+                  </a>
+                </th>
+                <th>
+                  <a href class="text-default" ng-click="sortBy('data')">
+                    Value/Filename
+                    <i ng-show="artifacts.sort !== '+data' && artifacts.sort !== '-data'" class="fa fa-sort"></i>
+                    <i ng-show="artifacts.sort === '+data'" class="fa fa-caret-up"></i>
+                    <i ng-show="artifacts.sort === '-data'" class="fa fa-caret-down"></i>
+                  </a>
+                </th>
+                <th style="width: 120px">
+                  <a href class="text-default" ng-click="sortBy('startDate')">
+                    Date Added
+                    <i ng-show="artifacts.sort !== '+startDate' && artifacts.sort !== '-startDate'" class="fa fa-sort"></i>
+                    <i ng-show="artifacts.sort === '+startDate'" class="fa fa-caret-up"></i>
+                    <i ng-show="artifacts.sort === '-startDate'" class="fa fa-caret-down"></i>
+                  </a>
+                </th>
+                <th style="width: 40px;" ng-if="appConfig.connectors.cortex.enabled">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -55,6 +77,9 @@
                 </td>
                 <td>
                     <span ng-click="addFilterValue('ioc', artifact.ioc)" ng-if="artifact.ioc" class="clickable fa fa-star" uib-tooltip="is an IOC" tooltip-popup-delay="500" tooltip-placement="bottom"></span>
+                </td>
+                <td>
+                    <span ng-click="addFilterValue('sighted', artifact.sighted)" ng-if="artifact.sighted" class="clickable fa fa-toggle-on" uib-tooltip="has been sighted" tooltip-popup-delay="500" tooltip-placement="bottom"></span>
                 </td>
                 <td>
 					<span uib-tooltip="{{artifact.stats.seen}} related artifact(s)" tooltip-popup-delay="500" tooltip-placement="bottom" ng-if="artifact.stats.seen > 0" class="glyphicon glyphicon-eye-open"></span>
@@ -75,12 +100,31 @@
                             {{tag}}
                         </span>
                     </div>
-                </td>
-                <td>
-                    <ng-pluralize count="keys(artifact.reports).length" when="{'0': 'No reports available', 'one': '1 report available', 'other': '{} reports available'}"></ng-pluralize>                    
+
+                    <mini-report-list observable="artifact" reports="artifact.reports" on-item-clicked="showReport(observable, analyzerId)"></mini-report-list>
                 </td>
                 <td>
                     <a href ng-click="addFilterValue('startDate', artifact.startDate)"><span uib-tooltip="{{artifact.startDate | showDate}}" tooltip-popup-delay="500" tooltip-placement="bottom">{{artifact.startDate | shortDate}}</span></a>
+                </td>
+                <td ng-if="appConfig.connectors.cortex.enabled">
+                    <span class="ml-xs" uib-dropdown>
+                        <a href class="text-primary noline nowrap" ng-click="getObsResponders(artifact.id, true)" uib-dropdown-toggle>
+                            <i class="text-primary fa fa-cog"></i>
+                        </a>
+                        <ul class="dropdown-menu align-right" uib-dropdown-menu>
+                          <li ng-if="obsResponders && obsResponders.length === 0">
+                            <a href ng-click="getObsResponders(artifact.id, true)">
+                              <strong><i class="fa fa-refresh mr-xxs"></i> No responders available</strong>
+                            </a>
+                          </li>
+                          <li ng-repeat="responder in obsResponders">
+                            <a href ng-click="runResponder(responder.id, artifact)">
+                              <strong>{{responder.name}}</strong>
+                              <br>
+                              <small>{{responder.description}}</small></a>
+                          </li>
+                        </ul>
+                    </span>
                 </td>
             </tr>
         </tbody>

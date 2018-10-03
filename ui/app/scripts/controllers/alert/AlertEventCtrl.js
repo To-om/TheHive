@@ -1,10 +1,12 @@
 (function() {
     'use strict';
     angular.module('theHiveControllers')
-        .controller('AlertEventCtrl', function($scope, $rootScope, $state, $uibModalInstance, AlertingSrv, NotificationSrv, event) {
+        .controller('AlertEventCtrl', function($scope, $rootScope, $state, $uibModalInstance, CustomFieldsCacheSrv, CaseResolutionStatus, AlertingSrv, NotificationSrv, event, templates) {
             var self = this;
             var eventId = event.id;
 
+            self.templates = _.pluck(templates, 'name');
+            self.CaseResolutionStatus = CaseResolutionStatus;
             self.event = event;
 
             self.loading = true;
@@ -16,6 +18,27 @@
                 data: []
             };
             self.filteredArtifacts = [];
+
+            self.similarityFilters = {};
+            self.similaritySorts = ['-startDate', '-similarArtifactCount', '-similarIocCount', '-iocCount'];
+            self.currentSimilarFilter = '';
+            self.similarCasesStats = [];
+            self.customFieldsCache = CustomFieldsCacheSrv;
+
+            var getTemplateCustomFields = function(customFields) {
+                var result = [];
+
+                result = _.pluck(_.sortBy(_.map(customFields, function(definition, name){
+                    return {
+                        name: name,
+                        order: definition.order
+                    }
+                }), function(item){
+                    return item.order;
+                }), 'name');
+
+                return result;
+            }
 
             this.filterArtifacts = function(value) {
                 self.pagination.currentPage = 1;
@@ -37,12 +60,28 @@
                 });
 
                 self.pagination.data = data;
+
+                // load custom fields
+                self.updateCustomFieldsList();
+            };
+
+            self.getCustomFieldName = function(fieldDef) {
+                return 'customFields.' + fieldDef.reference + '.' + fieldDef.type;
+            };
+
+            self.updateCustomFieldsList = function() {
+                CustomFieldsCacheSrv.all().then(function(fields) {
+                    self.orderedFields = getTemplateCustomFields(self.event.customFields);
+                    self.allCustomFields = _.omit(fields, _.keys(self.event.customFields));
+                    self.customFieldsAvailable = _.keys(self.allCustomFields).length > 0;
+                });
             };
 
             self.load = function() {
                 AlertingSrv.get(eventId).then(function(response) {
                     self.event = response.data;
                     self.loading = false;
+                    self.initSimilarCasesFilter(self.event.similarCases);
 
                     self.dataTypes = _.countBy(self.event.artifacts, function(attr) {
                         return attr.dataType;
@@ -56,9 +95,24 @@
                 });
             };
 
+            self.updateField = function (fieldName, newValue) {
+                var field = {};
+                field[fieldName] = newValue;
+
+                return AlertingSrv.update(self.event.id, field)
+                  .then(function() {
+                      NotificationSrv.log('Alert updated successfully', 'success');
+                  })
+                  .catch(function (response) {
+                      NotificationSrv.error('AlertEventCtrl', response.data, response.status);
+                  });
+            }
+
             self.import = function() {
                 self.loading = true;
-                AlertingSrv.create(self.event.id).then(function(response) {
+                AlertingSrv.create(self.event.id, {
+                    caseTemplate: self.event.caseTemplate
+                }).then(function(response) {
                     $uibModalInstance.dismiss();
 
                     $rootScope.$broadcast('alert:event-imported');
@@ -72,6 +126,23 @@
                 });
             };
 
+            self.mergeIntoCase = function(caseId) {
+                self.loading = true;
+                AlertingSrv.mergeInto(self.event.id, caseId)
+                    .then(function(response) {
+                        $uibModalInstance.dismiss();
+
+                        $rootScope.$broadcast('alert:event-imported');
+
+                        $state.go('app.case.details', {
+                            caseId: response.data.id
+                        });
+                    }, function(response) {
+                        self.loading = false;
+                        NotificationSrv.error('AlertEventCtrl', response.data, response.status);
+                    });
+            };
+
             this.follow = function() {
                 var fn = angular.noop;
 
@@ -82,7 +153,7 @@
                 }
 
                 fn(self.event.id).then(function() {
-                    $uibModalInstance.dismiss();
+                    $uibModalInstance.close();
                 }).catch(function(response) {
                     NotificationSrv.error('AlertEventCtrl', response.data, response.status);
                 });
@@ -101,7 +172,7 @@
                 }
 
                 fn(this.event.id).then(function( /*data*/ ) {
-                    $uibModalInstance.dismiss();
+                    $uibModalInstance.close();
                 }, function(response) {
                     NotificationSrv.error('AlertEventCtrl', response.data, response.status);
                 });
@@ -109,6 +180,50 @@
 
             self.cancel = function() {
                 $uibModalInstance.dismiss();
+            };
+
+            self.initSimilarCasesFilter = function(data) {
+                var stats = {
+                    'Open': 0
+                };
+
+                // Init the stats object
+                _.each(_.without(_.keys(CaseResolutionStatus), 'Duplicated'), function(key) {
+                    stats[key] = 0
+                });
+
+                _.each(data, function(item) {
+                    if(item.status === 'Open') {
+                        stats[item.status] = stats[item.status] + 1;
+                    } else {
+                        stats[item.resolutionStatus] = stats[item.resolutionStatus] + 1;
+                    }
+                });
+
+                var result = [];
+                _.each(_.keys(stats), function(key) {
+                    result.push({
+                        key: key,
+                        value: stats[key]
+                    })
+                });
+
+                self.similarCasesStats = result;
+            };
+
+            self.filterSimilarCases = function(filter) {
+                self.currentSimilarFilter = filter;
+                if(filter === '') {
+                    self.similarityFilters = {};
+                } else if(filter === 'Open') {
+                    self.similarityFilters = {
+                        status: filter
+                    };
+                } else {
+                    self.similarityFilters = {
+                        resolutionStatus: filter
+                    };
+                }
             };
 
             self.load();

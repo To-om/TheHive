@@ -5,9 +5,13 @@ angular.module('theHiveDirectives', []);
 
 angular.module('thehive', ['ngAnimate', 'ngMessages', 'ngSanitize', 'ui.bootstrap', 'ui.router', 'ui.sortable',
         'theHiveControllers', 'theHiveServices', 'theHiveFilters',
-        'theHiveDirectives', 'yaru22.jsonHuman', 'timer', 'angularMoment', 'ngCsv', 'ngTagsInput', 'btford.markdown',
-        'ngResource', 'ui-notification', 'angularjs-dropdown-multiselect', 'base64', 'angular-clipboard',
-        'LocalStorageModule', 'angular-markdown-editor', 'hc.marked', 'hljs', 'ui.ace', 'angular-page-loader', 'naif.base64', 'images-resizer'
+        'theHiveDirectives', 'yaru22.jsonHuman', 'timer', 'angularMoment', 'ngCsv', 'ngTagsInput',
+        // 'btford.markdown',
+        'ngResource', 'ui-notification', 'angularjs-dropdown-multiselect', 'angular-clipboard',
+        'LocalStorageModule',
+        'angular-markdown-editor',
+        'hc.marked', 'hljs', 'ui.ace', 'angular-page-loader', 'naif.base64', 'images-resizer', 'duScroll',
+        'dndLists', 'colorpicker.module'
     ])
     .config(function($resourceProvider) {
         'use strict';
@@ -28,6 +32,14 @@ angular.module('thehive', ['ngAnimate', 'ngMessages', 'ngSanitize', 'ui.bootstra
                 url: '/login',
                 controller: 'AuthenticationCtrl',
                 templateUrl: 'views/login.html',
+                resolve: {
+                    appConfig: function(VersionSrv) {
+                                 return VersionSrv.get();
+                              }
+                },
+                params: {
+                    autoLogin: false
+                },
                 title: 'Login'
             })
             .state('live', {
@@ -87,7 +99,22 @@ angular.module('thehive', ['ngAnimate', 'ngMessages', 'ngSanitize', 'ui.bootstra
                 url: 'search?q',
                 templateUrl: 'views/partials/search/list.html',
                 controller: 'SearchCtrl',
-                title: 'Search'
+                title: 'Search',
+                resolve: {
+                    metadata: function($q, DashboardSrv, NotificationSrv) {
+                        var defer = $q.defer();
+
+                        DashboardSrv.getMetadata()
+                            .then(function(response) {
+                                defer.resolve(response);
+                            }, function(err) {
+                                NotificationSrv.error('DashboardViewCtrl', err.data, err.status);
+                                defer.reject(err);
+                            });
+
+                        return defer.promise;
+                    }
+                }
             })
             .state('app.settings', {
                 url: 'settings',
@@ -115,12 +142,6 @@ angular.module('thehive', ['ngAnimate', 'ngMessages', 'ngSanitize', 'ui.bootstra
                         return VersionSrv.get();
                     }
                 }
-            })
-            .state('app.statistics', {
-                url: 'statistics',
-                templateUrl: 'views/partials/statistics.html',
-                controller: 'StatisticsCtrl',
-                title: 'Statistics'
             })
             .state('app.administration', {
                 abstract: true,
@@ -157,7 +178,16 @@ angular.module('thehive', ['ngAnimate', 'ngMessages', 'ngSanitize', 'ui.bootstra
                 url: '/case-templates',
                 templateUrl: 'views/partials/admin/case-templates.html',
                 controller: 'AdminCaseTemplatesCtrl',
-                title: 'Templates administration'
+                controllerAs: '$vm',
+                title: 'Templates administration',
+                resolve: {
+                    templates: function(CaseTemplateSrv) {
+                        return CaseTemplateSrv.list();
+                    },
+                    fields: function(CustomFieldsCacheSrv){
+                        return CustomFieldsCacheSrv.all();
+                    }
+                }
             })
             .state('app.administration.report-templates', {
                 url: '/report-templates',
@@ -171,6 +201,13 @@ angular.module('thehive', ['ngAnimate', 'ngMessages', 'ngSanitize', 'ui.bootstra
                 templateUrl: 'views/partials/admin/metrics.html',
                 controller: 'AdminMetricsCtrl',
                 title: 'Metrics administration'
+            })
+            .state('app.administration.custom-fields', {
+                url: '/custom-fields',
+                templateUrl: 'views/partials/admin/custom-fields.html',
+                controller: 'AdminCustomFieldsCtrl',
+                controllerAs: '$vm',
+                title: 'Custom fields administration'
             })
             .state('app.administration.observables', {
                 url: '/observables',
@@ -270,11 +307,53 @@ angular.module('thehive', ['ngAnimate', 'ngMessages', 'ngSanitize', 'ui.bootstra
                 templateUrl: 'views/partials/alert/list.html',
                 controller: 'AlertListCtrl',
                 controllerAs: '$vm'
+            })
+            .state('app.dashboards', {
+                url: 'dashboards',
+                templateUrl: 'views/partials/dashboard/list.html',
+                controller: 'DashboardsCtrl',
+                controllerAs: '$vm'
+            })
+            .state('app.dashboards-view', {
+                url: 'dashboards/{id}',
+                templateUrl: 'views/partials/dashboard/view.html',
+                controller: 'DashboardViewCtrl',
+                controllerAs: '$vm',
+                resolve: {
+                    dashboard: function(NotificationSrv, DashboardSrv, $stateParams, $q) {
+                        var defer = $q.defer();
+
+                        DashboardSrv.get($stateParams.id)
+                            .then(function(response) {
+                                defer.resolve(response.data);
+                            }, function(err) {
+                                NotificationSrv.error('DashboardViewCtrl', err.data, err.status);
+                                defer.reject(err);
+                            });
+
+                        return defer.promise;
+                    },
+                    metadata: function($q, DashboardSrv, NotificationSrv) {
+                        var defer = $q.defer();
+
+                        DashboardSrv.getMetadata()
+                            .then(function(response) {
+                                defer.resolve(response);
+                            }, function(err) {
+                                NotificationSrv.error('DashboardViewCtrl', err.data, err.status);
+                                defer.reject(err);
+                            });
+
+                        return defer.promise;
+                    }
+                }
             });
     })
     .config(function($httpProvider) {
         'use strict';
 
+        $httpProvider.defaults.xsrfCookieName = 'THE-HIVE-XSRF-TOKEN';
+        $httpProvider.defaults.xsrfHeaderName = 'X-THE-HIVE-XSRF-TOKEN';
         $httpProvider.interceptors.push(function($rootScope, $q) {
             var isApiCall = function(url) {
                 return url && url.startsWith('./api') && !url.startsWith('./api/stream');
@@ -320,13 +399,12 @@ angular.module('thehive', ['ngAnimate', 'ngMessages', 'ngSanitize', 'ui.bootstra
             verticalSpacing: 20,
             horizontalSpacing: 20,
             positionX: 'left',
-            positionY: 'top'
+            positionY: 'bottom'
         });
     })
-    .config(['markedProvider', 'hljsServiceProvider', function(markedProvider, hljsServiceProvider) {
+    .config(function($provide, markedProvider, hljsServiceProvider) {
         'use strict';
 
-        // marked config
         markedProvider.setOptions({
             gfm: true,
             tables: true,
@@ -342,10 +420,32 @@ angular.module('thehive', ['ngAnimate', 'ngMessages', 'ngSanitize', 'ui.bootstra
 
         // highlight config
         hljsServiceProvider.setOptions({
-            // replace tab with 4 spaces
             tabReplace: '    '
         });
-    }])
+
+        // Decorate the marked service to allow generating links with _target="blank"
+        $provide.decorator('marked', [
+            '$delegate',
+            function markedDecorator($delegate) {
+              // Credits: https://github.com/markedjs/marked/issues/655#issuecomment-383226346
+              var defaults = markedProvider.defaults;
+
+              var renderer = defaults.renderer;
+              var linkRenderer = _.wrap(renderer.link, function(originalLink, href, title, text) {
+                  var html = originalLink.call(renderer, href, title, text);
+                  return html.replace(/^<a /, '<a target="_blank" rel="nofollow" ')
+              });
+
+              // Customize the link renderer
+              defaults.renderer.link = linkRenderer;
+
+              // Patch the marked instance
+              $delegate.setOptions(defaults);
+
+              return $delegate;
+            }
+        ]);
+    })
     .run(function($rootScope) {
         'use strict';
         $rootScope.async = 0;
@@ -357,4 +457,5 @@ angular.module('thehive', ['ngAnimate', 'ngMessages', 'ngSanitize', 'ui.bootstra
                 $rootScope.title = toState.title;
             }
         });
-    });
+    })
+    .constant('UrlParser', url);

@@ -5,21 +5,23 @@
     'use strict';
 
     angular.module('theHiveControllers').controller('ObservableCreationCtrl',
-        function($scope, $stateParams, $uibModalInstance, clipboard, CaseArtifactSrv, ListSrv, NotificationSrv) {
+        function($scope, $stateParams, $uibModalInstance, clipboard, CaseArtifactSrv, ListSrv, NotificationSrv, params, tags) {
 
             $scope.activeTlp = 'active';
             $scope.pendingAsync = false;
             $scope.step = 'form';
-            $scope.params = {
-                bulk: false,
+            $scope.params = params || {
                 ioc: false,
+                sighted: false,
+                isZip: false,
+                zipPassword: '',
                 data: '',
                 tlp: 2,
                 message: '',
                 tags: [],
                 tagNames: ''
             };
-            $scope.tags = [];
+            $scope.tags = tags || [];
 
             $scope.$watchCollection('tags', function(value) {
                 $scope.params.tagNames = _.pluck(value, 'text').join(',');
@@ -71,22 +73,22 @@
                     postData = {
                         dataType: params.dataType,
                         ioc: params.ioc,
+                        sighted: params.sighted,
                         tlp: params.tlp,
                         message: params.message,
                         tags: _.unique(_.pluck($scope.tags, 'text'))
                     };
 
                 if (params.data) {
-
-                    if ($scope.params.bulk) {
-                        postData.data = params.data.split('\n');
-                        count = postData.length;
-                    } else {
-                        postData.data = params.data;
-                    }
-
+                    postData.data = params.data.split('\n');
+                    count = postData.length;
                 } else if (params.attachment) {
                     postData.attachment = params.attachment;
+
+                    if(params.isZip) {
+                        postData.isZip = params.isZip;
+                        postData.zipPassword = params.zipPassword;
+                    }
                 }
 
                 $scope.pendingAsync = true;
@@ -102,7 +104,7 @@
 
                 return _.map(failures, function(observable) {
                     return {
-                        data: observable.object.data,
+                        data: observable.object.dataType === 'file' ? observable.object.attachment.name : observable.object.data,
                         type: observable.type
                     };
                 });
@@ -141,7 +143,12 @@
                     $scope.step = 'error';
 
                 } else {
-                    NotificationSrv.error('ObservableCreationCtrl', 'An unexpected error occurred while creating the observables', response.status);
+										if(response.data.type === "java.io.IOException")
+                    	NotificationSrv.error('ObservableCreationCtrl', response.data.message, response.status);
+										else if(response.data.type === "InternalError")
+											NotificationSrv.error('ObservableCreationCtrl', response.data.message, response.status);
+										else
+	                    NotificationSrv.error('ObservableCreationCtrl', 'An unexpected error occurred while creating the observables', response.status);
 
                     $uibModalInstance.close(response);
                 }
@@ -155,7 +162,7 @@
             };
 
             $scope.cancel = function() {
-                $uibModalInstance.dismiss();
+                $uibModalInstance.dismiss('cancel');
             };
 
             $scope.isFile = function() {
@@ -165,6 +172,7 @@
                     return false;
                 }
             };
+
         }
     );
 

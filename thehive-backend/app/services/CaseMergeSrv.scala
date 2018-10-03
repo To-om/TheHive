@@ -3,20 +3,22 @@ package services
 import java.util.Date
 import javax.inject.{ Inject, Singleton }
 
-import akka.Done
-import akka.stream.Materializer
-import akka.stream.scaladsl.Sink
-import models._
-import org.elastic4play.controllers.{ AttachmentInputValue, Fields }
-import org.elastic4play.models.BaseEntity
-import org.elastic4play.services.{ AuthContext, EventMessage, EventSrv }
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.math.BigDecimal.long2bigDecimal
+import scala.util.Failure
+
 import play.api.Logger
 import play.api.libs.json.JsValue.jsValueToJsLookup
 import play.api.libs.json._
 
-import scala.concurrent.{ ExecutionContext, Future }
-import scala.math.BigDecimal.long2bigDecimal
-import scala.util.Failure
+import akka.Done
+import akka.stream.Materializer
+import akka.stream.scaladsl.Sink
+import models._
+
+import org.elastic4play.controllers.{ AttachmentInputValue, Fields }
+import org.elastic4play.models.BaseEntity
+import org.elastic4play.services.{ AuthContext, EventMessage, EventSrv }
 
 case class MergeArtifact(newArtifact: Artifact, artifacts: Seq[Artifact], authContext: AuthContext) extends EventMessage
 
@@ -33,6 +35,10 @@ class CaseMergeSrv @Inject() (
   private[CaseMergeSrv] lazy val logger = Logger(getClass)
 
   import org.elastic4play.services.QueryDSL._
+
+  private[services] def concatOpt[E](entities: Seq[E], sep: String, getId: E ⇒ Long, getStr: E ⇒ Option[String]) = {
+    JsString(entities.flatMap(e ⇒ getStr(e).map(s ⇒ s"#${getId(e)}:$s")).mkString(sep))
+  }
 
   private[services] def concat[E](entities: Seq[E], sep: String, getId: E ⇒ Long, getStr: E ⇒ String) = {
     JsString(entities.map(e ⇒ s"#${getId(e)}:${getStr(e)}").mkString(sep))
@@ -97,13 +103,12 @@ class CaseMergeSrv @Inject() (
   private[services] def mergeMetrics(cases: Seq[Case]): JsObject = {
     val metrics = for {
       caze ← cases
-      metrics ← caze.metrics()
-      metricsObject ← metrics.asOpt[JsObject]
+      metricsObject ← caze.metrics().asOpt[JsObject]
     } yield metricsObject
 
     val mergedMetrics: Seq[(String, JsValue)] = metrics.flatMap(_.keys).distinct.map { key ⇒
       val metricValues = metrics.flatMap(m ⇒ (m \ key).asOpt[BigDecimal])
-      if (metricValues.size != 1)
+      if (metricValues.lengthCompare(1) != 0)
         key → JsNull
       else
         key → JsNumber(metricValues.head)
@@ -112,7 +117,24 @@ class CaseMergeSrv @Inject() (
     JsObject(mergedMetrics)
   }
 
-  private[services] def baseFields(entity: BaseEntity): Fields = Fields(entity.attributes - "_id" - "_routing" - "_parent" - "_type" - "createdBy" - "createdAt" - "updatedBy" - "updatedAt" - "user")
+  private[services] def mergeCustomFields(cases: Seq[Case]): JsObject = {
+    val customFields = for {
+      caze ← cases
+      customFieldsObject ← caze.customFields().asOpt[JsObject]
+    } yield customFieldsObject
+
+    val mergedCustomFieldsObject: Seq[(String, JsValue)] = customFields.flatMap(_.keys).distinct.flatMap { key ⇒
+      val customFieldsValues = customFields.flatMap(cf ⇒ (cf \ key).asOpt[JsObject]).distinct
+      if (customFieldsValues.lengthCompare(1) != 0)
+        None
+      else
+        Some(key → customFieldsValues.head)
+    }
+
+    JsObject(mergedCustomFieldsObject)
+  }
+
+  private[services] def baseFields(entity: BaseEntity): Fields = Fields(entity.attributes - "_id" - "_routing" - "_parent" - "_type" - "_version" - "createdBy" - "createdAt" - "updatedBy" - "updatedAt" - "user")
 
   private[services] def mergeLogs(oldTask: Task, newTask: Task)(implicit authContext: AuthContext): Future[Done] = {
     logSrv.find("_parent" ~= oldTask.id, Some("all"), Nil)._1
@@ -134,7 +156,7 @@ class CaseMergeSrv @Inject() (
       .mapAsyncUnordered(5) { task ⇒ taskSrv.create(newCase, baseFields(task)).map(task → _) }
       .flatMapConcat {
         case (oldTask, newTask) ⇒
-          logger.info(s"\ttask : ${oldTask.id} -> ${newTask.id} : ${newTask.title()}")
+          logger.info(s"\ttask : ${oldTask.id} → ${newTask.id} : ${newTask.title()}")
           val (logs, futureLogCount) = logSrv.find(and(parent("case_task", withId(oldTask.id)), "status" ~!= LogStatus.Deleted), Some("all"), Nil)
           futureLogCount.foreach { count ⇒ logger.info(s"Creating $count log(s) in task ${newTask.id}") }
           logs.map(_ → newTask)
@@ -212,12 +234,14 @@ class CaseMergeSrv @Inject() (
         }
           .set("data", firstArtifact.data().map(JsString))
           .set("dataType", firstArtifact.dataType())
-          .set("message", concat[Artifact](sameArtifacts, "\n  \n", a ⇒ caseMap(a.parentId.get).caseId(), _.message()))
+          .set("message", concatOpt[Artifact](sameArtifacts, "\n  \n", a ⇒ caseMap(a.parentId.get).caseId(), _.message()))
           .set("startDate", firstDate(sameArtifacts.map(_.startDate())))
           .set("tlp", JsNumber(sameArtifacts.map(_.tlp()).min))
           .set("tags", JsArray(sameArtifacts.flatMap(_.tags()).distinct.map(JsString)))
           .set("ioc", JsBoolean(sameArtifacts.map(_.ioc()).reduce(_ || _)))
           .set("status", mergeArtifactStatus(sameArtifacts))
+          .set("sighted", JsBoolean(sameArtifacts.map(_.sighted()).reduce(_ || _)))
+          .set("reports", sameArtifacts.map(a ⇒ Json.parse(a.reports()).as[JsObject]).reduce(_ deepMerge _).toString)
         // Merged artifact is created under new case
         artifactSrv
           .create(newCase, fields)
@@ -249,6 +273,7 @@ class CaseMergeSrv @Inject() (
       .set("tlp", JsNumber(cases.map(_.tlp()).max))
       .set("status", JsString(CaseStatus.Open.toString))
       .set("metrics", mergeMetrics(cases))
+      .set("customFields", mergeCustomFields(cases))
       .set("resolutionStatus", mergeResolutionStatus(cases))
       .set("impactStatus", mergeImpactStatus(cases))
       .set("summary", mergeSummary(cases))

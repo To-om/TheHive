@@ -1,4 +1,4 @@
-@import url(https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic);
+@import url(AdminLTE-fonts.css);
 /*!
  *   AdminLTE v2.3.7
  *   Author: Almsaeed Studio
@@ -3259,6 +3259,11 @@ table.text-center th {
 }
 .social-auth-links {
   margin: 10px 0;
+}
+
+.sso-login-box {
+    margin-top: 20px;
+    text-align: center;
 }
 /*
  * Page: 400 and 500 error pages

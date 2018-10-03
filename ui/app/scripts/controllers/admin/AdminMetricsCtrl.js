@@ -5,6 +5,20 @@
         function($scope, ListSrv, MetricsCacheSrv, NotificationSrv) {
             $scope.metrics = [];
 
+            $scope.state = {
+                sort: 'name',
+                asc: true
+            };
+
+            $scope.sortBy = function(field) {
+                if($scope.state.sort === field) {
+                    $scope.state.asc = !$scope.state.asc;
+                } else {
+                    $scope.state.sort = field;
+                    $scope.state.asc = true;
+                }
+            };
+
             $scope.initMetrics = function() {
                 $scope.metric = {
                     name: '',
@@ -15,9 +29,9 @@
                 ListSrv.query({
                     'listId': 'case_metrics'
                 }, {}, function(response) {
-
-                    $scope.metrics = _.values(response).filter(_.isString).map(function(item) {
-                        return JSON.parse(item);
+                    $scope.metrics = _.map(response.toJSON(), function(value, metricId) {
+                        value.id = metricId;
+                        return value;
                     });
 
                 }, function(response) {
@@ -30,7 +44,7 @@
                 ListSrv.save({
                         'listId': 'case_metrics'
                     }, {
-                        'value': JSON.stringify($scope.metric)
+                        'value': $scope.metric
                     }, function() {
                         $scope.initMetrics();
 

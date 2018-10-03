@@ -1,7 +1,7 @@
 (function() {
     'use strict';
     angular.module('theHiveControllers')
-        .controller('AlertListCtrl', function($scope, $q, $state, $uibModal, AlertingSrv, NotificationSrv, FilteringSrv, Severity) {
+        .controller('AlertListCtrl', function($scope, $q, $state, $uibModal, TagSrv, CaseTemplateSrv, AlertingSrv, NotificationSrv, FilteringSrv, CortexSrv, Severity) {
             var self = this;
 
             self.list = [];
@@ -93,6 +93,8 @@
             self.searchForm = {
                 searchQuery: self.filtering.buildQuery() || ''
             };
+            self.lastSearch = null;
+            self.responders = null;
 
             $scope.$watch('$vm.list.pageSize', function (newValue) {
                 self.filtering.setPageSize(newValue);
@@ -188,9 +190,12 @@
                     templateUrl: 'views/partials/alert/event.dialog.html',
                     controller: 'AlertEventCtrl',
                     controllerAs: 'dialog',
-                    size: 'lg',
+                    size: 'max',
                     resolve: {
-                        event: event
+                        event: event,
+                        templates: function() {
+                            return CaseTemplateSrv.list();
+                        }
                     }
                 });
             };
@@ -203,6 +208,31 @@
                     self.menu.selectAll = false;
                     self.updateMenu();
                 }
+            };
+
+            this.getResponders = function(eventId, force) {
+                if(!force && this.responders !== null) {
+                   return;
+                }
+
+                this.responders = null;
+                CortexSrv.getResponders('alert', eventId)
+                  .then(function(responders) {
+                      self.responders = responders;
+                  })
+                  .catch(function(err) {
+                      NotificationSrv.error('AlertList', response.data, response.status);
+                  });
+            };
+
+            this.runResponder = function(responderId, event) {
+                CortexSrv.runResponder(responderId, 'alert', _.pick(event, 'id', 'tlp'))
+                  .then(function(response) {
+                      NotificationSrv.log(['Responder', response.data.responderName, 'started successfully on alert', event.title].join(' '), 'success');
+                  })
+                  .catch(function(response) {
+                      NotificationSrv.error('CaseList', response.data, response.status);
+                  });
             };
 
             self.load = function() {
@@ -272,7 +302,11 @@
 
             this.applyFilters = function () {
                 self.searchForm.searchQuery = self.filtering.buildQuery();
-                self.search();
+
+                if(self.lastSearch !== self.searchForm.searchQuery) {
+                    self.lastSearch = self.searchForm.searchQuery;
+                    self.search();
+                }
             };
 
             this.clearFilters = function () {
@@ -367,6 +401,10 @@
 
             this.getSources = function(query) {
                 return AlertingSrv.sources(query);
+            };
+
+            this.getTags = function(query) {
+                return TagSrv.fromAlerts(query);
             };
 
             self.load();

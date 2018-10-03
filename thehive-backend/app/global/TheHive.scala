@@ -1,6 +1,9 @@
 package global
 
-import java.net.{ URL, URLClassLoader }
+import scala.collection.JavaConverters._
+
+import play.api.libs.concurrent.AkkaGuiceSupport
+import play.api.{ Configuration, Environment, Logger, Mode }
 
 import com.google.inject.AbstractModule
 import com.google.inject.name.Names
@@ -8,16 +11,15 @@ import connectors.Connector
 import controllers.{ AssetCtrl, AssetCtrlDev, AssetCtrlProd }
 import models.Migration
 import net.codingwell.scalaguice.{ ScalaModule, ScalaMultibinder }
+import org.reflections.Reflections
+import org.reflections.scanners.SubTypesScanner
+import org.reflections.util.ConfigurationBuilder
+import services._
+
 import org.elastic4play.models.BaseModelDef
 import org.elastic4play.services.auth.MultiAuthSrv
-import org.elastic4play.services.{ AuthSrv, AuthSrvFactory, MigrationOperations, TempFilter }
-import org.reflections.Reflections
-import play.api.libs.concurrent.AkkaGuiceSupport
-import play.api.mvc.EssentialFilter
-import play.api.{ Configuration, Environment, Logger, Mode }
-import services.{ AuditSrv, AuditedModel, StreamFilter, StreamMonitor }
-
-import scala.collection.JavaConversions.asScalaSet
+import org.elastic4play.services.{ AuthSrv, MigrationOperations }
+import services.mappers.{ MultiUserMapperSrv, UserMapper }
 
 class TheHive(
     environment: Environment,
@@ -31,17 +33,21 @@ class TheHive(
     val modelBindings = ScalaMultibinder.newSetBinder[BaseModelDef](binder)
     val auditedModelBindings = ScalaMultibinder.newSetBinder[AuditedModel](binder)
     val authBindings = ScalaMultibinder.newSetBinder[AuthSrv](binder)
-    val authFactoryBindings = ScalaMultibinder.newSetBinder[AuthSrvFactory](binder)
+    val ssoMapperBindings = ScalaMultibinder.newSetBinder[UserMapper](binder)
 
-    val packageUrls = Seq(getClass.getClassLoader, classOf[org.elastic4play.Timed].getClassLoader).flatMap {
-      case ucl: URLClassLoader ⇒ ucl.getURLs
-      case _                   ⇒ Array.empty[URL]
-    }
+    val reflectionClasses = new Reflections(new ConfigurationBuilder()
+      .forPackages("org.elastic4play")
+      .forPackages("connectors.cortex")
+      .forPackages("connectors.misp")
+      .forPackages("connectors.metrics")
+      .addClassLoader(getClass.getClassLoader)
+      .addClassLoader(environment.getClass.getClassLoader)
+      .setExpandSuperTypes(false)
+      .setScanners(new SubTypesScanner(false)))
 
-    new Reflections(new org.reflections.util.ConfigurationBuilder()
-      .addUrls(packageUrls: _*)
-      .setScanners(new org.reflections.scanners.SubTypesScanner(false)))
+    reflectionClasses
       .getSubTypesOf(classOf[BaseModelDef])
+      .asScala
       .filterNot(c ⇒ java.lang.reflect.Modifier.isAbstract(c.getModifiers))
       .foreach { modelClass ⇒
         logger.info(s"Loading model $modelClass")
@@ -51,34 +57,28 @@ class TheHive(
         }
       }
 
-    new Reflections(new org.reflections.util.ConfigurationBuilder()
-      .addUrls(packageUrls: _*)
-      .setScanners(new org.reflections.scanners.SubTypesScanner(false)))
+    reflectionClasses
       .getSubTypesOf(classOf[AuthSrv])
+      .asScala
       .filterNot(c ⇒ java.lang.reflect.Modifier.isAbstract(c.getModifiers) || c.isMemberClass)
-      .filterNot(_ == classOf[MultiAuthSrv])
-      .foreach { modelClass ⇒
-        authBindings.addBinding.to(modelClass)
+      .filterNot(c ⇒ c == classOf[MultiAuthSrv] || c == classOf[TheHiveAuthSrv])
+      .foreach { authSrvClass ⇒
+        authBindings.addBinding.to(authSrvClass)
       }
 
-    new Reflections(new org.reflections.util.ConfigurationBuilder()
-      .addUrls(packageUrls: _*)
-      .setScanners(new org.reflections.scanners.SubTypesScanner(false)))
-      .getSubTypesOf(classOf[AuthSrvFactory])
-      .filterNot(c ⇒ java.lang.reflect.Modifier.isAbstract(c.getModifiers))
-      .foreach { modelClass ⇒
-        authFactoryBindings.addBinding.to(modelClass)
-      }
-
-    val filterBindings = ScalaMultibinder.newSetBinder[EssentialFilter](binder)
-    filterBindings.addBinding.to[StreamFilter]
-    filterBindings.addBinding.to[TempFilter]
-    filterBindings.addBinding.to[CSRFFilter]
+    reflectionClasses
+      .getSubTypesOf(classOf[UserMapper])
+      .asScala
+      .filterNot(c ⇒ java.lang.reflect.Modifier.isAbstract(c.getModifiers) || c.isMemberClass)
+      .filterNot(c ⇒ c == classOf[MultiUserMapperSrv])
+      .foreach(mapperCls ⇒ ssoMapperBindings.addBinding.to(mapperCls))
 
     bind[MigrationOperations].to[Migration]
-    bind[AuthSrv].to[MultiAuthSrv]
-    bind[StreamMonitor].asEagerSingleton()
-    bind[AuditSrv].asEagerSingleton()
+    bind[AuthSrv].to[TheHiveAuthSrv]
+    bind[UserMapper].to[MultiUserMapperSrv]
+
+    bindActor[AuditActor]("AuditActor")
+    bindActor[LocalStreamActor]("localStreamActor")
 
     if (environment.mode == Mode.Prod)
       bind[AssetCtrl].to[AssetCtrlProd]

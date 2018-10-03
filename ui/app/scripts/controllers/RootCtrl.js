@@ -2,14 +2,14 @@
  * Controller for main page
  */
 angular.module('theHiveControllers').controller('RootCtrl',
-    function($scope, $rootScope, $uibModal, $location, $state, $base64, AuthenticationSrv, AlertingSrv, StreamSrv, StreamStatSrv, TemplateSrv, MetricsCacheSrv, NotificationSrv, AppLayoutSrv, currentUser, appConfig) {
+    function($scope, $rootScope, $uibModal, $location, $state, AuthenticationSrv, AlertingSrv, StreamSrv, StreamStatSrv, CaseSrv, CaseTemplateSrv, CustomFieldsCacheSrv, MetricsCacheSrv, NotificationSrv, AppLayoutSrv, VersionSrv, currentUser, appConfig) {
         'use strict';
 
         if(currentUser === 520) {
             $state.go('maintenance');
             return;
         }else if(!currentUser || !currentUser.id) {
-            $state.go('login');
+            $state.go('login', {autoLogin: appConfig.config.ssoAutoLogin });
             return;
         }
 
@@ -21,11 +21,36 @@ angular.module('theHiveControllers').controller('RootCtrl',
             data: 'mytasks'
         };
         $scope.mispEnabled = false;
-
-        StreamSrv.init();
+        $scope.customFieldsCache = [];
         $scope.currentUser = currentUser;
 
-        $scope.templates = TemplateSrv.query();
+        StreamSrv.init();
+        VersionSrv.startMonitoring(function(conf) {
+          var connectors = ['misp', 'cortex'];
+
+          _.each(connectors, function(connector) {
+              var currentStatus = $scope.appConfig.connectors[connector];
+              var newStatus = conf.connectors[connector];
+              if(currentStatus && currentStatus.enabled === newStatus.enabled &&
+                  newStatus.enabled === true &&
+                  currentStatus.status !== newStatus.status) {
+
+                  if(newStatus.status === 'OK') {
+                      NotificationSrv.log('The configured ' + connector.toUpperCase() + ' connections are now up.', 'success');
+                  } else if(newStatus.status === 'WARNING') {
+                      NotificationSrv.log('Some of the configured ' + connector.toUpperCase() + ' connections have errors. Please check your configuration.', 'warning');
+                  } else {
+                      NotificationSrv.log('The configured ' + connector.toUpperCase() + ' connections have errors. Please check your configuration.', 'error');
+                  }
+              }
+          });
+
+          $scope.appConfig = conf;
+        });
+
+        CaseTemplateSrv.list().then(function(templates) {
+            $scope.templates = templates;
+        });
 
         $scope.myCurrentTasks = StreamStatSrv({
             scope: $scope,
@@ -62,7 +87,9 @@ angular.module('theHiveControllers').controller('RootCtrl',
         $scope.alertEvents = AlertingSrv.stats($scope);
 
         $scope.$on('templates:refresh', function(){
-            $scope.templates = TemplateSrv.query();
+            CaseTemplateSrv.list().then(function(templates) {
+                $scope.templates = templates;
+            });
         });
 
         $scope.$on('metrics:refresh', function() {
@@ -70,6 +97,11 @@ angular.module('theHiveControllers').controller('RootCtrl',
             MetricsCacheSrv.all().then(function(list) {
                 $scope.metricsCache = list;
             });
+        });
+
+        $scope.$on('custom-fields:refresh', function() {
+            // Get custom fields cache
+            $scope.initCustomFieldsCache();
         });
 
         $scope.$on('alert:event-imported', function() {
@@ -80,6 +112,13 @@ angular.module('theHiveControllers').controller('RootCtrl',
         // $scope.$on('misp:status-updated', function(event, enabled) {
         //     $scope.mispEnabled = enabled;
         // });
+
+        $scope.initCustomFieldsCache = function() {
+            CustomFieldsCacheSrv.all().then(function(list) {
+                $scope.customFieldsCache = list;
+            });
+        };
+        $scope.initCustomFieldsCache();
 
         $scope.isAdmin = function(user) {
             var u = user;
@@ -121,13 +160,25 @@ angular.module('theHiveControllers').controller('RootCtrl',
             });
         };
 
-        $scope.search = function(querystring) {
-            var query = $base64.encode(angular.toJson({
-                _string: querystring
-            }));
+        $scope.search = function(caseId) {
+            if(!caseId || !_.isNumber(caseId) || caseId <= 0) {
+                return;
+            }
 
-            $state.go('app.search', {
-                q: query
+            CaseSrv.query({
+                query: {
+                    caseId: caseId
+                },
+                range: '0-1'
+            }, function(response) {
+                if(response.length === 1) {
+                    $state.go('app.case.details', {caseId: response[0].id}, {reload: true});
+                } else {
+                    NotificationSrv.log('Unable to find the case with number ' + caseId, 'error');
+                }
+                console.log(response[0]);
+            }, function(err) {
+                NotificationSrv.error('Case search', err.data, err.status);
             });
         };
 
