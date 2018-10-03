@@ -1,0 +1,5 @@
+pipeline:
+  backend:
+    image: scalacenter/scala:1.3
+    commands:
+      - sbt compile
