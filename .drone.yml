@@ -1,10 +1,6 @@
 ---
 kind: pipeline
 name: default
-#workspace:
-#        base: /home
-#        path: user
-
 
 steps:
         - name: restore-cache
@@ -21,9 +17,7 @@ steps:
         - name: build
           image: tooom/docker-scala-node
           commands:
-                  - id
-                  - mkdir -p /home/user/.sbt/boot/
-                  - find /home/user -exec ls -ald {} \;
+                  - . .nvm/nvm.sh
                   - sbt clean stage
 
         - name: save-cache
