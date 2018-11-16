@@ -2,8 +2,8 @@
 kind: pipeline
 name: default
 workspace:
-        base: /
-        path: /home/user
+        base: /home/user
+        path: /src
 
 
 steps:
