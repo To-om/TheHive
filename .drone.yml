@@ -21,10 +21,12 @@ steps:
         - name: build
           image: tooom/docker-scala-node
           commands:
+                  - id
+                  - mount
                   - find /home/user -exec ls -ald {} \;
                   - sbt clean stage
 
-        - name: restore-cache
+        - name: save-cache
           image: drillster/drone-volume-cache
           settings:
                   rebuild: true
