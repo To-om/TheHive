@@ -1,9 +1,9 @@
 ---
 kind: pipeline
 name: default
-workspace:
-        base: /home
-        path: user
+#workspace:
+#        base: /home
+#        path: user
 
 
 steps:
