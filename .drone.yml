@@ -8,8 +8,8 @@ steps:
           settings:
                   restore: true
                   mount:
-                          - /drone/.sbt
-                          - /drone/.ivy2
+                          - /home/user/.sbt
+                          - /home/user/.ivy2
                   volumes:
                           - name: cache
                             path: /cache
@@ -18,7 +18,6 @@ steps:
           image: tooom/docker-scala-node
           commands:
                   - . ~/.nvm/nvm.sh
-                  - export HOME=/drone
                   - sbt clean stage
 
         - name: save-cache
@@ -26,8 +25,8 @@ steps:
           settings:
                   rebuild: true
                   mount:
-                          - /drone/.sbt
-                          - /drone/.ivy2
+                          - /home/user/.sbt
+                          - /home/user/.ivy2
                   volumes:
                           - name: cache
                             path: /cache
