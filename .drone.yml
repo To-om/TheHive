@@ -4,6 +4,7 @@ workspace:
         base: /home/user
         path: /
 
+
 steps:
         - name: restore-cache
           image: drillster/drone-volume-cache
