@@ -19,7 +19,8 @@ steps:
 
         - name: build
           image: tooom/docker-scala-node
-          commands: sbt clean stage
+          commands:
+                  - sbt clean stage
 
         - name: restore-cache
           image: drillster/drone-volume-cache
