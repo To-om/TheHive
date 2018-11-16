@@ -1,3 +1,4 @@
+---
 kind: pipeline
 name: default
 workspace:
@@ -10,10 +11,10 @@ steps:
           image: drillster/drone-volume-cache
           restore: true
           mount:
-                - .sbt
-                - .ivy2
+                  - .sbt
+                  - .ivy2
           volumes:
-                - /opt/drone/cache:/cache
+                  - /opt/drone/cache:/cache
 
         - name: build
           image: tooom/docker-scala-node
@@ -23,7 +24,7 @@ steps:
           image: drillster/drone-volume-cache
           rebuild: true
           mount:
-                - .sbt
-                - .ivy2
+                  - .sbt
+                  - .ivy2
           volumes:
-                - /opt/drone/cache:/cache
+                  - /opt/drone/cache:/cache
