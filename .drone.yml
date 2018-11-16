@@ -17,7 +17,7 @@ steps:
         - name: build
           image: tooom/docker-scala-node
           commands:
-                  - . .nvm/nvm.sh
+                  - . ~/.nvm/nvm.sh
                   - sbt clean stage
 
         - name: save-cache
