@@ -17,10 +17,10 @@ steps:
         - name: build
           image: tooom/docker-scala-node
           commands:
-                  - touch a && echo source: RW || echo source: RO
-                  - touch /a && echo root: RW || echo root: RO
-                  - touch /drone/a && echo drone: RW || echo drone: RO
-                  - touch /home/user/a && echo home: RW || echo home: RO
+                  - "touch a && echo source: RW || echo source: RO"
+                  - "touch /a && echo root: RW || echo root: RO"
+                  - "touch /drone/a && echo drone: RW || echo drone: RO"
+                  - "touch /home/user/a && echo home: RW || echo home: RO"
                   - . ~/.nvm/nvm.sh
                   - sbt clean stage
 
