@@ -3,7 +3,7 @@ kind: pipeline
 name: default
 workspace:
         base: /home/user
-        path: /
+        path: /src
 
 
 steps:
