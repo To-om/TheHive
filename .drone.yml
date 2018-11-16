@@ -18,6 +18,7 @@ steps:
           image: tooom/docker-scala-node
           commands:
                   - . ~/.nvm/nvm.sh
+                  - export HOME=/drone
                   - sbt clean stage
 
         - name: save-cache
