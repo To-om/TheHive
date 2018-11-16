@@ -22,7 +22,7 @@ steps:
           image: tooom/docker-scala-node
           commands:
                   - id
-                  - mount
+                  - mkdir -p /home/user/.sbt/boot/
                   - find /home/user -exec ls -ald {} \;
                   - sbt clean stage
 
