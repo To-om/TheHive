@@ -14,7 +14,8 @@ steps:
                   - .sbt
                   - .ivy2
           volumes:
-                  - /opt/drone/cache:/cache
+                  - name: cache
+                    path: /cache
 
         - name: build
           image: tooom/docker-scala-node
@@ -27,4 +28,10 @@ steps:
                   - .sbt
                   - .ivy2
           volumes:
-                  - /opt/drone/cache:/cache
+                  - name: cache
+                    path: /cache
+
+volumes:
+        - name: cache
+          host:
+                  path: /opt/drone/cache
