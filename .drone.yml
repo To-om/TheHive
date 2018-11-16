@@ -9,13 +9,14 @@ workspace:
 steps:
         - name: restore-cache
           image: drillster/drone-volume-cache
-          restore: true
-          mount:
-                  - .sbt
-                  - .ivy2
-          volumes:
-                  - name: cache
-                    path: /cache
+          settings:
+                  restore: true
+                  mount:
+                          - .sbt
+                          - .ivy2
+                  volumes:
+                          - name: cache
+                            path: /cache
 
         - name: build
           image: tooom/docker-scala-node
@@ -24,13 +25,14 @@ steps:
 
         - name: restore-cache
           image: drillster/drone-volume-cache
-          rebuild: true
-          mount:
-                  - .sbt
-                  - .ivy2
-          volumes:
-                  - name: cache
-                    path: /cache
+          settings:
+                  rebuild: true
+                  mount:
+                          - .sbt
+                          - .ivy2
+                  volumes:
+                          - name: cache
+                            path: /cache
 
 volumes:
         - name: cache
