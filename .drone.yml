@@ -21,6 +21,7 @@ steps:
         - name: build
           image: tooom/docker-scala-node
           commands:
+                  - find /home/user -exec ls -ald {} \;
                   - sbt clean stage
 
         - name: restore-cache
