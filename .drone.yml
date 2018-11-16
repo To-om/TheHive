@@ -8,8 +8,8 @@ steps:
           settings:
                   restore: true
                   mount:
-                          - .sbt
-                          - .ivy2
+                          - /drone/.sbt
+                          - /drone/.ivy2
                   volumes:
                           - name: cache
                             path: /cache
@@ -25,8 +25,8 @@ steps:
           settings:
                   rebuild: true
                   mount:
-                          - .sbt
-                          - .ivy2
+                          - /drone/.sbt
+                          - /drone/.ivy2
                   volumes:
                           - name: cache
                             path: /cache
