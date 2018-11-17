@@ -17,6 +17,8 @@ steps:
                   mount:
                           - .sbt
                           - .ivy2
+                          - ui/node_modules
+                          - ui/bower_components
           volumes:
                   - name: cache
                     path: /cache
@@ -25,7 +27,16 @@ steps:
           image: tooom/docker-scala-node
           commands:
                   - . ~/.nvm/nvm.sh
-                  - sbt -Duser.home=$PWD clean stage
+                  - sbt -Duser.home=$PWD clean docker:stage
+
+        - name: docker
+          image: plugins/docker
+          settings:
+                  context: target/docker/stage
+                  username: kevinbacon
+                  repo: tooom
+                  auto_tag: true
+                  secrets: [ docker_username, docker_password ]
 
         - name: save-cache
           image: drillster/drone-volume-cache
@@ -34,6 +45,8 @@ steps:
                   mount:
                           - .sbt
                           - .ivy2
+                          - ui/node_modules
+                          - ui/bower_components
           volumes:
                   - name: cache
                     path: /cache
