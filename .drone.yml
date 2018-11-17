@@ -3,12 +3,12 @@ kind: pipeline
 name: default
 
 clone:
-        - disable: true
+        git:
+                image: plugins/git:next
+
 
 
 steps:
-        - name: clone
-          image: plugins/git:next
 
         - name: restore-cache
           image: drillster/drone-volume-cache
