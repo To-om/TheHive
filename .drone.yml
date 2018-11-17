@@ -49,7 +49,10 @@ steps:
                   dockerfile: target/docker/stage/Dockerfile
                   repo: tooom/thehive
                   auto_tag: true
-                  secrets: [ docker_username, docker_password ]
+                  username:
+                          from_secret: docker_username
+                  password:
+                          from_secret: docker_password
 
 volumes:
         - name: cache
