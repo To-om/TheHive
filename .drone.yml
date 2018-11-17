@@ -9,6 +9,7 @@ steps:
 
         - name: clone
           image: plugins/git:next
+
         - name: restore-cache
           image: drillster/drone-volume-cache
           settings:
@@ -16,9 +17,9 @@ steps:
                   mount:
                           - .sbt
                           - .ivy2
-                  volumes:
-                          - name: cache
-                            path: /cache
+          volumes:
+                  - name: cache
+                    path: /cache
 
         - name: build
           image: tooom/docker-scala-node
@@ -34,9 +35,9 @@ steps:
                   mount:
                           - .sbt
                           - .ivy2
-                  volumes:
-                          - name: cache
-                            path: /cache
+          volumes:
+                  - name: cache
+                    path: /cache
 
 volumes:
         - name: cache
