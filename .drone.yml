@@ -29,15 +29,6 @@ steps:
                   - . ~/.nvm/nvm.sh
                   - sbt -Duser.home=$PWD clean docker:stage
 
-        - name: docker
-          image: plugins/docker
-          settings:
-                  context: target/docker/stage
-                  dockerfile: target/docker/stage/Dockerfile
-                  repo: tooom
-                  auto_tag: true
-                  secrets: [ docker_username, docker_password ]
-
         - name: save-cache
           image: drillster/drone-volume-cache
           settings:
@@ -50,6 +41,15 @@ steps:
           volumes:
                   - name: cache
                     path: /cache
+
+        - name: docker
+          image: plugins/docker
+          settings:
+                  context: target/docker/stage
+                  dockerfile: target/docker/stage/Dockerfile
+                  repo: tooom/thehive
+                  auto_tag: true
+                  secrets: [ docker_username, docker_password ]
 
 volumes:
         - name: cache
