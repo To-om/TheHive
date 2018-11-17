@@ -5,7 +5,6 @@ name: default
 clone:
         - disable: true
 
-
 steps:
         - name: clone
           image: plugins/git:next
