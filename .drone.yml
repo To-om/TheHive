@@ -33,7 +33,7 @@ steps:
           image: plugins/docker
           settings:
                   context: target/docker/stage
-                  username: kevinbacon
+                  dockerfile: target/docker/stage/Dockerfile
                   repo: tooom
                   auto_tag: true
                   secrets: [ docker_username, docker_password ]
