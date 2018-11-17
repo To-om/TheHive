@@ -24,7 +24,6 @@ steps:
         - name: build
           image: tooom/docker-scala-node
           commands:
-                  - ls -al
                   - . ~/.nvm/nvm.sh
                   - sbt -Duser.home=$PWD clean stage
 
