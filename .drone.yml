@@ -14,8 +14,8 @@ steps:
           settings:
                   restore: true
                   mount:
-                          - /home/user/.sbt
-                          - /home/user/.ivy2
+                          - .sbt
+                          - .ivy2
                   volumes:
                           - name: cache
                             path: /cache
@@ -33,6 +33,7 @@ steps:
                   - "touch /drone/a && echo drone: RW || echo drone: RO"
                   - "touch /home/user/a && echo home: RW || echo home: RO"
                   - . ~/.nvm/nvm.sh
+                  - export HOME=$PWD
                   - sbt clean stage
 
         - name: save-cache
@@ -40,8 +41,8 @@ steps:
           settings:
                   rebuild: true
                   mount:
-                          - /home/user/.sbt
-                          - /home/user/.ivy2
+                          - .sbt
+                          - .ivy2
                   volumes:
                           - name: cache
                             path: /cache
