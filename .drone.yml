@@ -23,6 +23,11 @@ steps:
         - name: build
           image: tooom/docker-scala-node
           commands:
+                  - id
+                  - pwd
+                  - ls -al
+                  - echo @@@@@@@@@@@@@@@@@@@
+                  - ls -al ..
                   - "touch a && echo source: RW || echo source: RO"
                   - "touch /a && echo root: RW || echo root: RO"
                   - "touch /drone/a && echo drone: RW || echo drone: RO"
