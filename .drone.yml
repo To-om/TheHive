@@ -33,8 +33,7 @@ steps:
                   - "touch /drone/a && echo drone: RW || echo drone: RO"
                   - "touch /home/user/a && echo home: RW || echo home: RO"
                   - . ~/.nvm/nvm.sh
-                  - export HOME=$PWD
-                  - sbt clean stage
+                  - sbt -Duser.home=$PWD clean stage
 
         - name: save-cache
           image: drillster/drone-volume-cache
