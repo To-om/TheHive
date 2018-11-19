@@ -2,62 +2,91 @@
 kind: pipeline
 name: default
 
+# Disable default clone
 clone:
-        disable: true
+  disable: true
 
 steps:
+  # This clone step doesn't use "root" user
+  - name: clone
+    image: plugins/git:next
 
-        - name: clone
-          image: plugins/git:next
+  # Restore cache of downloaded dependencies
+  - name: restore-cache
+    image: drillster/drone-volume-cache
+    settings:
+      restore: true
+      mount:
+        - .sbt
+        - .ivy2
+        - ui/node_modules
+        - ui/bower_components
+    volumes: [{name: cache, path: /cache}]
 
-        - name: restore-cache
-          image: drillster/drone-volume-cache
-          settings:
-                  restore: true
-                  mount:
-                          - .sbt
-                          - .ivy2
-                          - ui/node_modules
-                          - ui/bower_components
-          volumes:
-                  - name: cache
-                    path: /cache
+  # Run project tests
+  - name: run-tests
+    image: tooom/docker-scala-node
+    commands:
+      - . ~/.nvm/nvm.sh
+      - sbt -Duser.home=$PWD test
 
-        - name: build
-          image: tooom/docker-scala-node
-          commands:
-                  - . ~/.nvm/nvm.sh
-                  - sbt -Duser.home=$PWD clean docker:stage
+  # Build packages
+  - name: build-packages
+    image: tooom/docker-scala-node
+    commands:
+      - . ~/.nvm/nvm.sh
+      - sbt -Duser.home=$PWD docker:stage debian:packageBin rpm:packageBin
+    when: {event: tag}
 
-        - name: save-cache
-          image: drillster/drone-volume-cache
-          settings:
-                  rebuild: true
-                  mount:
-                          - .sbt
-                          - .ivy2
-                          - ui/node_modules
-                          - ui/bower_components
-          volumes:
-                  - name: cache
-                    path: /cache
+  # Save external libraries in cache
+  - name: save-cache
+    image: drillster/drone-volume-cache
+    settings:
+      rebuild: true
+      mount:
+        - .sbt
+        - .ivy2
+        - ui/node_modules
+        - ui/bower_components
+    volumes: [{name: cache, path: /cache}]
 
-        - name: docker
-          image: plugins/docker
-          settings:
-                  context: target/docker/stage
-                  dockerfile: target/docker/stage/Dockerfile
-                  repo: tooom/thehive
-                  auto_tag: true
-                  username:
-                          from_secret: docker_username
-                  password:
-                          from_secret: docker_password
-          when:
-                  event:
-                          - tag
+  - name: publish-package
+    image: tooom/docker-bintray
+    settings:
+      - user: {from_secret: bintray_user}]
+      - key: {from_secret: bintray_key}]
+      - subject: thehive-project
+      - package: thehive
+    commands: |
+      if grep -q -E \
+          -e '^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$'
+          -e '^[0-9]+\.[0-9]+\.[0-9]+$'
+          -e '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' <<< $DRONE_TAG; then
+        echo The tag $DRONE_TAG is not a valid version
+        exit 1
+      fi
+      grep -qi
+      # 3.12.2 => stable: 3.12.2-1
+      # 3.12.2-1 => stable: 3.12.2-1
+      # 3.12.2-2 => stable: 3.12.2-2
+      # 3.12.2-RC1 => beta: 3.12.2-0.1RC1
+      - [[ "$DRONE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && CHANNEL=stable && PLUGIN_VERSION=${BASH_REMATCH[0]}-1
+      - [[ "$DRONE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$]] && CHANNEL=stable && PLUGIN_VERSION=${BASH_REMATCH[0]}-1
+      - [[ "$DRONE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$]] && CHANNEL=beta && PLUGIN_VERSION=${BASH_REMATCH[0]}-1
+      - upload.sh
+      # Publish docker image
+  - name: docker
+    image: plugins/docker
+    settings:
+      context: target/docker/stage
+      dockerfile: target/docker/stage/Dockerfile
+      repo: tooom/thehive
+      auto_tag: true
+      username: {from_secret: docker_username}
+      password: {from_secret: docker_password}
+    when: {event: tag}
 
 volumes:
-        - name: cache
-          host:
-                  path: /opt/drone/cache
+  - name: cache
+    host:
+      path: /opt/drone/cache
