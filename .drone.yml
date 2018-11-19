@@ -58,14 +58,18 @@ steps:
       - subject: thehive-project
       - package: thehive
     commands: |
-      if grep -q -E \
+      if grep -qi -E \
           -e '^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$'
           -e '^[0-9]+\.[0-9]+\.[0-9]+$'
           -e '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' <<< $DRONE_TAG; then
         echo The tag $DRONE_TAG is not a valid version
         exit 1
       fi
-      grep -qi
+      CHANNEL=stable
+      grep -qi rc <<< $DRONE-TAG && CHANNEL=beta
+      FILE=target/thehive_$VERSION.deb
+      upload.sh --file $FILE
+
       # 3.12.2 => stable: 3.12.2-1
       # 3.12.2-1 => stable: 3.12.2-1
       # 3.12.2-2 => stable: 3.12.2-2
