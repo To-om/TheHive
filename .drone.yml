@@ -38,7 +38,7 @@ steps:
     commands:
       - |
         . ~/.nvm/nvm.sh
-        [[ -n "$PLUGIN_PGP_KEY" ]] && gpg --batch --import - <<< $PLUGIN_PGP_KEY
+        [[ -n "$PLUGIN_PGP_KEY" ]] && echo $PLUGIN_PGP_KEY | gpg --batch --import -
         sbt -Duser.home=$PWD docker:stage debian:packageBin rpm:packageBin universal:packageBin
     when: {event: tag}
 
@@ -63,16 +63,16 @@ steps:
       package: thehive
     commands:
       - |
-        if grep -qi -E \
+        if echo $DRONE_TAG | grep -qi -E \
             -e '^[0-9]+\.[0-9]+\.[0-9]+$' \
             -e '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' \
-            -e '^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$' <<< $DRONE_TAG; then
+            -e '^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$'; then
           echo The tag $DRONE_TAG is not a valid version
           exit 1
         fi
 
         CHANNEL=stable
-        grep -qi rc <<< $DRONE-TAG && CHANNEL=beta
+        echo $DRONE-TAG | grep -qi rc  && CHANNEL=beta
 
         DEB_FILE=target/thehive_${VERSION}_all.deb
         RPM_FILE=target/rpm/RPMS/noarch/thehive-${VERSION}.noarch.rpm
