@@ -79,12 +79,12 @@ steps:
         CHANNEL=stable
         echo $VERSION | grep -qi rc  && CHANNEL=beta
 
-        DEB_FILE=target/thehive_${VERSION}_all.deb
-        RPM_FILE=target/rpm/RPMS/noarch/thehive-${VERSION}.noarch.rpm
-        ZIP_FILE=target/universal/thehive-${VERSION}.zip
+        DEB_FILE=target/thehive_$${VERSION}_all.deb
+        RPM_FILE=target/rpm/RPMS/noarch/thehive-$${VERSION}.noarch.rpm
+        ZIP_FILE=target/universal/thehive-$${VERSION}.zip
 
         upload \
-          --file DEB_FILE \
+          --file $DEB_FILE \
           --repo debian-beta \
           --package thehive \
           --version $VERSION \
@@ -93,7 +93,7 @@ steps:
           --extra-param deb_architecture=all
 
         [[ $CHANNEL = stable ]] && upload \
-          --file DEB_FILE \
+          --file $DEB_FILE \
           --repo debian-beta \
           --package thehive \
           --version $VERSION \
@@ -102,7 +102,7 @@ steps:
           --extra-param deb_architecture=all
 
         upload \
-          --file RPM_FILE \
+          --file $RPM_FILE \
           --repo rpm-beta \
           --package thehive \
           --version $VERSION
@@ -114,10 +114,10 @@ steps:
           --version $VERSION
 
         upload \
-                --file $ZIP_FILE \
-                --repo binary \
-                --package thehive \
-                --version $VERSION
+          --file $ZIP_FILE \
+          --repo binary \
+          --package thehive \
+          --version $VERSION
 
         LATEST_VERSION=latest
         [[ $CHANNEL = beta ]] && LATEST_VERSION=latest-beta
@@ -132,7 +132,7 @@ steps:
           --repo binary \
           --package thehive \
           --version $LATEST_VERSION \
-          --dest-file thehive-${LATEST_VERSION}.zip
+          --dest-file thehive-$${LATEST_VERSION}.zip
 
     when: {event: tag}
 
