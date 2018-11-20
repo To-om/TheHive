@@ -8,8 +8,8 @@ clone:
 
 steps:
   # This clone step doesn't use "root" user
-  #  - name: clone
-  #    image: plugins/git:next
+  - name: clone
+    image: plugins/git:next
 
   # Restore cache of downloaded dependencies
   - name: restore-cache
