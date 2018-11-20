@@ -35,7 +35,7 @@ steps:
     image: tooom/docker-scala-node
     commands:
       - . ~/.nvm/nvm.sh
-      - sbt -Duser.home=$PWD docker:stage debian:packageBin rpm:packageBin
+      - sbt -Duser.home=$PWD docker:stage debian:packageBin rpm:packageBin universal:packageBin
     when: {event: tag}
 
   # Save external libraries in cache
@@ -59,26 +59,69 @@ steps:
       - package: thehive
     commands: |
       if grep -qi -E \
-          -e '^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$'
-          -e '^[0-9]+\.[0-9]+\.[0-9]+$'
-          -e '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' <<< $DRONE_TAG; then
+          -e '^[0-9]+\.[0-9]+\.[0-9]+$' \
+          -e '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' \
+          -e '^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$' <<< $DRONE_TAG; then
         echo The tag $DRONE_TAG is not a valid version
         exit 1
       fi
+
       CHANNEL=stable
       grep -qi rc <<< $DRONE-TAG && CHANNEL=beta
-      FILE=target/thehive_$VERSION.deb
-      upload.sh --file $FILE
 
-      # 3.12.2 => stable: 3.12.2-1
-      # 3.12.2-1 => stable: 3.12.2-1
-      # 3.12.2-2 => stable: 3.12.2-2
-      # 3.12.2-RC1 => beta: 3.12.2-0.1RC1
-      - [[ "$DRONE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && CHANNEL=stable && PLUGIN_VERSION=${BASH_REMATCH[0]}-1
-      - [[ "$DRONE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$]] && CHANNEL=stable && PLUGIN_VERSION=${BASH_REMATCH[0]}-1
-      - [[ "$DRONE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$]] && CHANNEL=beta && PLUGIN_VERSION=${BASH_REMATCH[0]}-1
-      - upload.sh
-      # Publish docker image
+      DEB_FILE=target/thehive_${VERSION}_all.deb
+      RPM_FILE=target/rpm/RPMS/noarch/thehive-${VERSION}.noarch.rpm
+      ZIP_FILE=target/universal/thehive-${VERSION}.zip
+
+      upload.sh \
+        --file DEB_FILE \
+        --repo debian-beta \
+        --package thehive \
+        --version $VERSION \
+        --extra-param deb_distribution=any \
+        --extra-param deb_component=main \
+        --extra-param deb_architecture=all
+
+      [[ $CHANNEL = stable ]] && upload.sh \
+        --file DEB_FILE \
+        --repo debian-beta \
+        --package thehive \
+        --version $VERSION \
+        --extra-param deb_distribution=any \
+        --extra-param deb_component=main \
+        --extra-param deb_architecture=all
+
+      upload.sh \
+        --file RPM_FILE \
+        --repo rpm-beta \
+        --package thehive \
+        --version $VERSION
+
+      [[ $CHANNEL = stable ]] && upload.sh \
+        --file $RPM_FILE \
+        --repo rpm-beta \
+        --package thehive \
+        --version $VERSION
+
+      upload.sh \
+              --file $ZIP_FILE \
+              --repo binary \
+              --package thehive \
+              --version $VERSION
+
+      LATEST_VERSION=latest
+      [[ $CHANNEL = beta ]] && LATEST_VERSION=latest-beta
+
+      # Remove latest version
+      upload.sh \
+        --file $ZIP_FILE \
+        --repo binary \
+        --package thehive \
+        --version $LATEST_VERSION \
+        --dest-file thehive-${LATEST_VERSION}.zip
+    when: {event: tag}
+    
+  # Publish docker image
   - name: docker
     image: plugins/docker
     settings:
