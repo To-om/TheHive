@@ -38,7 +38,7 @@ steps:
     commands:
       - |
         . ~/.nvm/nvm.sh
-        [[ -n "$PLUGIN_PGP_KEY" ]] && echo $PLUGIN_PGP_KEY | gpg --batch --import -
+        [[ -n "$PLUGIN_PGP_KEY" ]] && gpg --batch --import - <<< $PLUGIN_PGP_KEY
         sbt -Duser.home=$PWD docker:stage debian:packageBin rpm:packageBin universal:packageBin
     when: {event: tag}
 
