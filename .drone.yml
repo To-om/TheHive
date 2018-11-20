@@ -33,8 +33,11 @@ steps:
   # Build packages
   - name: build-packages
     image: tooom/docker-scala-node
+    settings:
+      pgp_key: {from_secret: pgp_key}
     commands:
       - . ~/.nvm/nvm.sh
+      - [[ -n "$PLUGIN_PGP_KEY" ]] && gpg --batch --import - <<< $PLUGIN_PGP_KEY
       - sbt -Duser.home=$PWD docker:stage debian:packageBin rpm:packageBin universal:packageBin
     when: {event: tag}
 
