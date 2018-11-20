@@ -21,7 +21,6 @@ steps:
         - .ivy2
         - ui/node_modules
         - ui/bower_components
-        - target
     volumes: [{name: cache, path: /cache}]
 
   # Run project tests
@@ -41,7 +40,9 @@ steps:
         . ~/.nvm/nvm.sh
         [ -n "$PLUGIN_PGP_KEY" ] && gpg --batch --import - <<< $PLUGIN_PGP_KEY
         sbt -Duser.home=$PWD docker:stage debian:packageBin rpm:packageBin universal:packageBin
-    when: {event: tag}
+    when:
+      event: [tag]
+      branch: [master]
 
   # Save external libraries in cache
   - name: save-cache
@@ -53,7 +54,6 @@ steps:
         - .ivy2
         - ui/node_modules
         - ui/bower_components
-        - target
     volumes: [{name: cache, path: /cache}]
 
   - name: publish-package
@@ -137,8 +137,9 @@ steps:
           --package thehive \
           --version $LATEST_VERSION \
           --dest-file thehive-$${LATEST_VERSION}.zip
-
-    when: {event: tag}
+    when:
+      event: [tag]
+      branch: [master]
 
   # Publish docker image
   - name: docker
@@ -150,7 +151,10 @@ steps:
       auto_tag: true
       username: {from_secret: docker_username}
       password: {from_secret: docker_password}
-    when: {event: tag}
+    when:
+      event: [tag]
+      branch: [master]
+
 
 volumes:
   - name: cache
