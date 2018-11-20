@@ -42,7 +42,6 @@ steps:
         sbt -Duser.home=$PWD docker:stage debian:packageBin rpm:packageBin universal:packageBin
     when:
       event: [tag]
-      branch: [master]
 
   # Save external libraries in cache
   - name: save-cache
@@ -127,7 +126,6 @@ steps:
           --dest-file thehive-$${LATEST_VERSION}.zip
     when:
       event: [tag]
-      branch: [master]
 
   # Publish docker image
   - name: docker
@@ -141,7 +139,6 @@ steps:
       password: {from_secret: docker_password}
     when:
       event: [tag]
-      branch: [master]
 
 
 volumes:
