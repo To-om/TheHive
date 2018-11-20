@@ -117,7 +117,7 @@ steps:
           --repo binary \
           --package thehive \
           --version $LATEST_VERSION
-        
+
         upload \
           --file $ZIP_FILE \
           --repo binary \
