@@ -65,76 +65,64 @@ steps:
       package: thehive
     commands:
       - |
-        VERSION=$(cut -d\" -f2 version.sbt)
-        echo "Publishing package version $VERSION"
-
-        if echo $VERSION | grep -qvi -E \
-            -e '^[0-9]+\.[0-9]+\.[0-9]+$' \
-            -e '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' \
-            -e '^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$'; then
-          echo The version $VERSION has invalid format
-          exit 1
-        fi
-
-        CHANNEL=stable
-        echo $VERSION | grep -qi rc && CHANNEL=beta
-
-        DEB_FILE=target/thehive_$${VERSION}_all.deb
-        RPM_FILE=target/rpm/RPMS/noarch/thehive-$${VERSION}.noarch.rpm
-        ZIP_FILE=target/universal/thehive-$${VERSION}.zip
         export PLUGIN_USER
         export PLUGIN_KEY
         export PLUGIN_SUBJECT
         export PLUGIN_PACKAGE
+        export PLUGIN_VERSION=$(cut -d\" -f2 version.sbt)
+        echo "Publishing package version $PLUGIN_VERSION"
+
+        if echo $PLUGIN_VERSION | grep -qvi -E \
+            -e '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            -e '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' \
+            -e '^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$'; then
+          echo The version $PLUGIN_VERSION has invalid format
+          exit 1
+        fi
+
+        CHANNEL=stable
+        echo $PLUGIN_VERSION | grep -qi rc && CHANNEL=beta
+
+        DEB_FILE=target/thehive_$${PLUGIN_VERSION}_all.deb
+        RPM_FILE=target/rpm/RPMS/noarch/thehive-$${PLUGIN_VERSION}.noarch.rpm
+        ZIP_FILE=target/universal/thehive-$${PLUGIN_VERSION}.zip
 
         upload \
           --file $DEB_FILE \
           --repo debian-beta \
-          --package thehive \
-          --version $VERSION \
           --extra-param deb_distribution=any \
           --extra-param deb_component=main \
           --extra-param deb_architecture=all
 
         [ $CHANNEL = stable ] && upload \
           --file $DEB_FILE \
-          --repo debian-beta \
-          --package thehive \
-          --version $VERSION \
+          --repo debian-stable \
           --extra-param deb_distribution=any \
           --extra-param deb_component=main \
           --extra-param deb_architecture=all
 
         upload \
           --file $RPM_FILE \
-          --repo rpm-beta \
-          --package thehive \
-          --version $VERSION
+          --repo rpm-beta
 
         [ $CHANNEL = stable ] && upload \
           --file $RPM_FILE \
-          --repo rpm-beta \
-          --package thehive \
-          --version $VERSION
+          --repo rpm-stable
 
         upload \
           --file $ZIP_FILE \
-          --repo binary \
-          --package thehive \
-          --version $VERSION
+          --repo binary
 
         LATEST_VERSION=latest
         [ $CHANNEL = beta ] && LATEST_VERSION=latest-beta
 
         removeVersion \
           --repo binary \
-          --package thehive \
           --version $LATEST_VERSION
 
         upload \
           --file $ZIP_FILE \
           --repo binary \
-          --package thehive \
           --version $LATEST_VERSION \
           --dest-file thehive-$${LATEST_VERSION}.zip
     when:
