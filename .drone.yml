@@ -25,36 +25,36 @@ steps:
     volumes: [{name: cache, path: /cache}]
 
   # Run project tests
-  #  - name: run-tests
-  #    image: tooom/docker-scala-node
-  #    commands:
-  #      - . ~/.nvm/nvm.sh
-  #      - sbt -Duser.home=$PWD test
-  #
-  #  # Build packages
-  #  - name: build-packages
-  #    image: tooom/docker-scala-node
-  #    settings:
-  #      pgp_key: {from_secret: pgp_key}
-  #    commands:
-  #      - |
-  #        . ~/.nvm/nvm.sh
-  #        [[ -n "$PLUGIN_PGP_KEY" ]] && gpg --batch --import - <<< $PLUGIN_PGP_KEY
-  #        sbt -Duser.home=$PWD docker:stage debian:packageBin rpm:packageBin universal:packageBin
-  #    when: {event: tag}
-  #
-  #  # Save external libraries in cache
-  #  - name: save-cache
-  #    image: drillster/drone-volume-cache
-  #    settings:
-  #      rebuild: true
-  #      mount:
-  #        - .sbt
-  #        - .ivy2
-  #        - ui/node_modules
-  #        - ui/bower_components
-  #        - target
-  #    volumes: [{name: cache, path: /cache}]
+  - name: run-tests
+    image: tooom/docker-scala-node
+    commands:
+      - . ~/.nvm/nvm.sh
+      - sbt -Duser.home=$PWD test
+
+  # Build packages
+  - name: build-packages
+    image: tooom/docker-scala-node
+    settings:
+      pgp_key: {from_secret: pgp_key}
+    commands:
+      - |
+        . ~/.nvm/nvm.sh
+        [ -n "$PLUGIN_PGP_KEY" ] && gpg --batch --import - <<< $PLUGIN_PGP_KEY
+        sbt -Duser.home=$PWD docker:stage debian:packageBin rpm:packageBin universal:packageBin
+    when: {event: tag}
+
+  # Save external libraries in cache
+  - name: save-cache
+    image: drillster/drone-volume-cache
+    settings:
+      rebuild: true
+      mount:
+        - .sbt
+        - .ivy2
+        - ui/node_modules
+        - ui/bower_components
+        - target
+    volumes: [{name: cache, path: /cache}]
 
   - name: publish-package
     image: tooom/docker-bintray
